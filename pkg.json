@@ -1,0 +1,22 @@
+{
+  "bin": "launcher.js",
+  "pkg": {
+    "targets": [
+      "node18-win-x64"
+    ],
+    "outputPath": "dist-pkg",
+    "assets": [
+      "dist/**/*",
+      "public/**/*"
+    ],
+    "scripts": [
+      "launcher.js"
+    ],
+    "compress": true,
+    "options": {
+      "v8-cache": true,
+      "public-packages": "*",
+      "public": true
+    }
+  }
+}
