@@ -5,9 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 3000,
-    host: true,
-    hmr: true,
-    open: false
+    host: true
   },
   build: {
     rollupOptions: {
@@ -16,7 +14,7 @@ export default defineConfig({
       }
     },
     sourcemap: false,
-    minify: false,
+    minify: 'esbuild',
     target: 'esnext',
     outDir: 'dist',
     assetsDir: 'assets',

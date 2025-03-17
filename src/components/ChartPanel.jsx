@@ -1,16 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, FormControl, InputLabel, MenuItem, Select, Grid } from '@mui/material';
 import * as echarts from 'echarts';
+import { useLanguage } from '../contexts/LanguageContext';
 
 const ChartPanel = () => {
   const chartsRef = useRef([]);
   const [selectedForces, setSelectedForces] = useState([]);
+  const { t } = useLanguage();
 
   const forceOptions = [
-    { value: 1, label: '一', color: '#4080ff' },
-    { value: 2, label: '二', color: '#ff4040' },
-    { value: 3, label: '三', color: '#ffffff' },
-    { value: 4, label: '四', color: '#40ff40' }
+    { value: 1, label: t('force1'), color: '#4080ff' },
+    { value: 2, label: t('force2'), color: '#ff4040' },
+    { value: 3, label: t('force3'), color: '#ffffff' },
+    { value: 4, label: t('force4'), color: '#40ff40' }
   ];
 
   useEffect(() => {
@@ -65,7 +67,7 @@ const ChartPanel = () => {
   const handleChartRef = (element, index) => {
     if (!element) return;
 
-    const titles = ['X方向力', 'Y方向力', 'Z方向力'];
+    const titles = [t('xAxisForce'), t('yAxisForce'), t('zAxisForce')];
     const newChart = initChart(element, titles[index]);
     if (newChart) {
       chartsRef.current[index] = newChart;
@@ -167,13 +169,13 @@ const ChartPanel = () => {
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2 }}>
       <FormControl size="small" sx={{ minWidth: 120 }}>
-        <InputLabel id="force-select-label" sx={{ color: '#999' }}>受力选择</InputLabel>
+        <InputLabel id="force-select-label" sx={{ color: '#999' }}>{t('forceSelect')}</InputLabel>
         <Select
           labelId="force-select-label"
           multiple
           value={selectedForces}
           onChange={handleForceChange}
-          label="受力选择"
+          label={t('forceSelect')}
           sx={{
             color: '#fff',
             '.MuiOutlinedInput-notchedOutline': {

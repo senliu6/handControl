@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { Box, AppBar, Toolbar, IconButton, Typography, Grid, Drawer, List, ListItem, ListItemText, ListItemSecondaryAction, TextField, Button } from '@mui/material';
+import { useLanguage } from './contexts/LanguageContext';
+import AIAssistant from './components/AIAssistant';
 import { styled } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -36,6 +38,7 @@ function App() {
   const [open, setOpen] = useState(false);
   const [serialNumber, setSerialNumber] = useState('');
   const [serialList, setSerialList] = useState([]);
+  const { t, toggleLanguage, language } = useLanguage();
 
   const handleDrawerToggle = () => {
     setOpen(!open);
@@ -77,8 +80,15 @@ function App() {
             <MenuIcon />
           </IconButton>
           <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            3D可视化分析系统
+            {t('title')}
           </Typography>
+          <Button
+            color="inherit"
+            onClick={toggleLanguage}
+            sx={{ ml: 2 }}
+          >
+            {language === 'zh' ? 'EN' : '中文'}
+          </Button>
         </Toolbar>
       </AppBar>
       <Box sx={{ display: 'flex' }}>
@@ -106,7 +116,7 @@ function App() {
                   size="small"
                   value={serialNumber}
                   onChange={handleInputChange}
-                  placeholder="输入序列号"
+                  placeholder={t('inputSerialNumber')}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       color: '#fff',
@@ -121,7 +131,7 @@ function App() {
                   onClick={handleAddSerial}
                   sx={{ backgroundColor: '#4080ff', '&:hover': { backgroundColor: '#3070ff' } }}
                 >
-                  添加
+                  {t('add')}
                 </Button>
               </Box>
               <List>
@@ -183,6 +193,7 @@ function App() {
           </Grid>
         </ContentContainer>
       </Box>
+      <AIAssistant />
     </MainContainer>
   );
 }

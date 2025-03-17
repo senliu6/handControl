@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { Box, IconButton, ButtonGroup, Button, Slider, Typography } from '@mui/material';
+import { useLanguage } from '../contexts/LanguageContext';
 import { styled } from '@mui/material/styles';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import * as THREE from 'three';
@@ -64,6 +65,7 @@ const ThreeScene = () => {
   const isAnimating = useRef(true);
   const [displayMode, setDisplayMode] = useState('none');
   const [sliderValue, setSliderValue] = useState(1);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (!containerRef.current || sceneRef.current) return;
@@ -250,7 +252,7 @@ const ThreeScene = () => {
         overflow: 'hidden',
       }}
     >
-      <ResetButton onClick={handleResetView} title="重置视角">
+      <ResetButton onClick={handleResetView} title={t('resetView')}>
         <RestartAltIcon />
       </ResetButton>
       <ViewControls>
@@ -259,13 +261,13 @@ const ThreeScene = () => {
             onClick={() => setDisplayMode(displayMode === 'deformation' ? 'none' : 'deformation')}
             sx={displayMode === 'deformation' ? { backgroundColor: '#4080ff' } : {}}
           >
-            变形场
+            {t('deformation')}
           </ViewButton>
           <ViewButton 
             onClick={() => setDisplayMode(displayMode === 'force' ? 'none' : 'force')}
             sx={displayMode === 'force' ? { backgroundColor: '#4080ff' } : {}}
           >
-            分布力
+            {t('forceDistribution')}
           </ViewButton>
         </ButtonGroup>
       </ViewControls>
