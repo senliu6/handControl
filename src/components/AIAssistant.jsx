@@ -61,7 +61,7 @@ const AIAssistant = () => {
     event.preventDefault();
     if (!message.trim()) return;
     if (!apiKey) {
-      setMessages([...messages, { text: "请先在设置中配置API密钥", isAI: true }]);
+      setMessages([...messages, { text: "请先在设置中配置阿里云API密钥", isAI: true }]);
       setIsSettingsOpen(true);
       return;
     }
