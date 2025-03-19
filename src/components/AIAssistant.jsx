@@ -59,7 +59,16 @@ const AIAssistant = () => {
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!message.trim() || !apiKey) return;
+    if (!message.trim()) return;
+    
+    if (!apiKey) {
+      setMessages(prev => [...prev, {
+        text: "请先设置API密钥才能使用AI助手",
+        isAI: true
+      }]);
+      setIsSettingsOpen(true);
+      return;
+    }
 
     setMessages([...messages, { text: message, isAI: false }]);
     setMessage('');
@@ -356,7 +365,7 @@ const AIAssistant = () => {
 
           <Box
             component="form"
-            onSubmit={handleSubmit}
+            onSubmit={(e) => handleSubmit(e)}
             sx={{
               p: 2,
               borderTop: '1px solid rgba(255, 255, 255, 0.1)',
