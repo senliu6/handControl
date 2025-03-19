@@ -5,6 +5,7 @@ import { styled } from '@mui/material/styles';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
+import { parse } from 'numpy-parser';
 
 const ResetButton = styled(IconButton)(({ theme }) => ({
   position: 'absolute',
@@ -19,16 +20,18 @@ const ResetButton = styled(IconButton)(({ theme }) => ({
 
 const ViewButton = styled(Button)(({ theme }) => ({
   minWidth: '40px',
-  padding: '6px',
+  padding: '8px 28px',
+  margin: '2px 0px',
   backgroundColor: 'rgba(45, 45, 45, 0.7)',
   color: '#fff',
+  borderRadius: '8px',
   '&:hover': {
     backgroundColor: 'rgba(45, 45, 45, 0.9)',
   },
   '&.Mui-selected': {
-    backgroundColor: '#4080ff',
+    backgroundColor: '#ff0000',
     '&:hover': {
-      backgroundColor: '#3070ff',
+      backgroundColor: '#cc0000',
     },
   },
 }));
@@ -63,89 +66,181 @@ const ThreeScene = () => {
   const rendererRef = useRef(null);
   const controlsRef = useRef(null);
   const isAnimating = useRef(true);
-  const [displayMode, setDisplayMode] = useState('none');
+  const [displayMode, setDisplayMode] = useState('deformation');
   const [sliderValue, setSliderValue] = useState(1);
   const { t } = useLanguage();
 
   useEffect(() => {
     if (!containerRef.current || sceneRef.current) return;
-
+  
     const scene = new THREE.Scene();
     sceneRef.current = scene;
-
+  
     const camera = new THREE.PerspectiveCamera(
       75,
       containerRef.current.clientWidth / containerRef.current.clientHeight,
       0.1,
-      1000
+      2000 // 增加远裁剪面，防止溢出
     );
     cameraRef.current = camera;
-
+  
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
     renderer.setClearColor(0x2d2d2d);
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
-
+  
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.minDistance = 2; // 最小距离
+    controls.maxDistance = 30; // 增加最大距离
     controlsRef.current = controls;
-
+  
     const initScene = () => {
-      camera.position.set(0, 0, 8);
+      camera.position.set(0, 0, 15); // 进一步增加初始 Z 距离
       camera.lookAt(0, 0, 0);
       controls.target.set(0, 0, 0);
       controls.update();
     };
     initScene();
-
-    const axesHelper = new THREE.AxesHelper(2);
-    axesHelper.position.set(2, 2, 0);
-    scene.add(axesHelper);
-
-    const createLabel = (text, position) => {
+  
+    // 创建独立的坐标轴场景
+    const axesScene = new THREE.Scene();
+    const axesCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 30); // 增加远裁剪面
+    axesCamera.position.set(7, 7, 7); // 增加相机位置范围
+    axesCamera.lookAt(0, 0, 0);
+  
+    const axesRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    axesRenderer.setSize(120, 120);
+    axesRenderer.setClearColor(0x000000, 0);
+    axesRenderer.domElement.style.position = 'absolute';
+    axesRenderer.domElement.style.top = '20px';
+    axesRenderer.domElement.style.right = '20px';
+  
+    // 创建坐标轴容器
+    const axesContainer = document.createElement('div');
+    axesContainer.style.position = 'absolute';
+    axesContainer.style.top = '20px';
+    axesContainer.style.right = '20px';
+    axesContainer.style.width = '180px';
+    axesContainer.style.height = '180px';
+    axesContainer.style.backgroundColor = 'rgba(45, 45, 45, 0.7)';
+    axesContainer.style.borderRadius = '50%';
+    axesContainer.style.overflow = 'hidden';
+    axesContainer.appendChild(axesRenderer.domElement);
+    containerRef.current.appendChild(axesContainer);
+  
+    // 创建坐标轴和轴端标识
+    const radius = 2; // 进一步增加轴线长度
+    const segments = 32;
+    const sphereRadius = 0.35; // 球形半径
+  
+    const createAxisWithLabel = (direction, axisColor, label, sphereColor) => {
+      const group = new THREE.Group();
+  
+      // 创建轴线
+      const axis = new THREE.Line(
+        new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, 0),
+          direction.clone().multiplyScalar(radius)
+        ]),
+        new THREE.LineBasicMaterial({ color: axisColor })
+      );
+      group.add(axis);
+  
+      // 创建轴端球形，替换圆形
+      const sphereGeometry = new THREE.SphereGeometry(sphereRadius, segments, segments);
+      const sphereMaterial = new THREE.MeshBasicMaterial({ color: sphereColor });
+      const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+      sphere.position.copy(direction.clone().multiplyScalar(radius));
+  
+      // 根据轴的方向调整球形的朝向（球形无需额外旋转）
+      group.add(sphere);
+  
+      // 创建文字标识，紧贴球面
       const canvas = document.createElement('canvas');
-      const context = canvas.getContext('2d');
       canvas.width = 64;
       canvas.height = 64;
+      const context = canvas.getContext('2d');
       context.fillStyle = '#ffffff';
-      context.font = 'bold 32px Arial';
+      context.font = 'bold 40px Arial';
       context.textAlign = 'center';
       context.textBaseline = 'middle';
-      context.fillText(text, 32, 32);
-
+      context.fillText(label, 32, 32);
+  
       const texture = new THREE.CanvasTexture(canvas);
-      const material = new THREE.SpriteMaterial({ map: texture });
-      const sprite = new THREE.Sprite(material);
-      sprite.position.copy(position);
-      sprite.scale.set(0.3, 0.3, 0.3);
-      return sprite;
+      const labelMaterial = new THREE.SpriteMaterial({
+        map: texture,
+        sizeAttenuation: false,
+        depthTest: false
+      });
+      const sprite = new THREE.Sprite(labelMaterial);
+      sprite.scale.set(0.15, 0.15, 1);
+      sprite.position.copy(direction.clone().multiplyScalar(radius)); // 文字位置与球形重合
+  
+      // 确保标签始终面向相机
+      sprite.onBeforeRender = function (renderer, scene, camera) {
+        this.lookAt(camera.position);
+        this.updateMatrix();
+      };
+  
+      group.add(sprite);
+  
+      return group;
     };
-
-    scene.add(createLabel('X', new THREE.Vector3(4.5, 2, 0)));
-    scene.add(createLabel('Y', new THREE.Vector3(2, 4.5, 0)));
-    scene.add(createLabel('Z', new THREE.Vector3(2, 2, 2.5)));
-
-    const textureLoader = new THREE.TextureLoader();
-    const imageUrl = new URL('../assets/model.png', import.meta.url);
-    textureLoader.load(
-      imageUrl.href,
-      (texture) => {
-        texture.minFilter = THREE.LinearFilter;
-        texture.magFilter = THREE.LinearFilter;
-        texture.format = THREE.RGBAFormat;
-        texture.needsUpdate = true;
-        const aspectRatio = texture.image.width / texture.image.height;
-        const geometry = new THREE.PlaneGeometry(5 * aspectRatio, 5);
-        const material = new THREE.MeshBasicMaterial({ map: texture, side: THREE.DoubleSide });
-        const plane = new THREE.Mesh(geometry, material);
-        plane.position.set(0, 0, 0);
-        scene.add(plane);
-      },
-      undefined,
-      (error) => console.error("Texture load error:", error)
-    );
-
+  
+    // 创建三个轴，调整颜色以匹配要求
+    const xAxis = createAxisWithLabel(new THREE.Vector3(1, 0, 0), 0xff0000, 'X', 0xff0000); // X轴：红色轴线，红色球
+    const yAxis = createAxisWithLabel(new THREE.Vector3(0, 1, 0), 0xffff00, 'Y', 0x808080); // Y轴：黄色轴线，灰色球
+    const zAxis = createAxisWithLabel(new THREE.Vector3(0, 0, 1), 0x00ff00, 'Z', 0x808080); // Z轴：绿色轴线，灰色球
+  
+    axesScene.add(xAxis);
+    axesScene.add(yAxis);
+    axesScene.add(zAxis);
+  
+    // 更新坐标轴视图
+    const animateAxes = () => {
+      requestAnimationFrame(animateAxes);
+      axesCamera.position.copy(camera.position).normalize().multiplyScalar(7); // 进一步扩大范围
+      axesCamera.lookAt(0, 0, 0);
+      axesRenderer.render(axesScene, axesCamera);
+    };
+    animateAxes();
+  
+    // 创建主场景中的点云
+    const geometry = new THREE.BufferGeometry();
+    const vertices = [];
+    const colors = [];
+    const gridSize = 10;
+    
+    for (let i = 0; i < gridSize; i++) {
+      for (let j = 0; j < gridSize; j++) {
+        const x = (i / (gridSize - 1) - 0.5) * 5;
+        const y = (j / (gridSize - 1) - 0.5) * 5;
+        const z = Math.sin(x * Math.PI) * Math.cos(y * Math.PI);
+        vertices.push(x, y, z);
+        
+        const color = new THREE.Color();
+        color.setHSL(0.6 + z * 0.1, 1.0, 0.5);
+        colors.push(color.r, color.g, color.b);
+      }
+    }
+    
+    geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+    geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+    
+    const material = new THREE.PointsMaterial({
+      size: 0.2,
+      vertexColors: true,
+      sizeAttenuation: true,
+      transparent: true,
+      opacity: 0.9
+    });
+    
+    const points = new THREE.Points(geometry, material);
+    scene.add(points);
+  
+    // 动画循环
     const animate = () => {
       if (!isAnimating.current) return;
       requestAnimationFrame(animate);
@@ -153,7 +248,7 @@ const ThreeScene = () => {
       renderer.render(scene, camera);
     };
     animate();
-
+  
     const handleResize = () => {
       if (!containerRef.current) return;
       const width = containerRef.current.clientWidth;
@@ -163,7 +258,7 @@ const ThreeScene = () => {
       renderer.setSize(width, height);
     };
     window.addEventListener('resize', handleResize);
-
+  
     return () => {
       window.removeEventListener('resize', handleResize);
       if (containerRef.current && renderer.domElement) {
@@ -183,23 +278,13 @@ const ThreeScene = () => {
 
     console.log("📍 Before Reset Position:", camera.position);
 
-    isAnimating.current = false;
-    controls.dispose();
-
     camera.position.set(0, 0, 8);
     camera.lookAt(0, 0, 0);
     camera.up.set(0, 1, 0);
     camera.updateMatrixWorld(true);
 
-    const newControls = new OrbitControls(camera, renderer.domElement);
-    newControls.enableDamping = true;
-    newControls.target.set(0, 0, 0);
-    newControls.update();
-    controlsRef.current = newControls;
-
-    renderer.render(scene, camera);
-
-    isAnimating.current = true;
+    controls.target.set(0, 0, 0);
+    controls.update();
 
     console.log("✅ Reset Completed! New Position:", camera.position);
   };
@@ -211,9 +296,6 @@ const ThreeScene = () => {
     const controls = controlsRef.current;
     const renderer = rendererRef.current;
     const scene = sceneRef.current;
-
-    isAnimating.current = false;
-    controls.dispose();
 
     switch (view) {
       case 'x':
@@ -231,14 +313,12 @@ const ThreeScene = () => {
     camera.up.set(0, 1, 0);
     camera.updateMatrixWorld(true);
 
-    const newControls = new OrbitControls(camera, renderer.domElement);
-    newControls.enableDamping = true;
-    newControls.target.set(0, 0, 0);
-    newControls.update();
-    controlsRef.current = newControls;
+    controls.target.set(0, 0, 0);
+    controls.update();
+  };
 
-    renderer.render(scene, camera);
-    isAnimating.current = true;
+  const handleModeChange = (mode) => {
+    setDisplayMode(prevMode => mode === prevMode ? mode : mode);
   };
 
   return (
@@ -256,16 +336,28 @@ const ThreeScene = () => {
         <RestartAltIcon />
       </ResetButton>
       <ViewControls>
-        <ButtonGroup variant="contained" size="small">
+        <ButtonGroup variant="contained" size="small" sx={{ backgroundColor: 'rgba(45, 45, 45, 0.7)', boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)', borderRadius: '4px', padding: '4px' }}>
           <ViewButton 
-            onClick={() => setDisplayMode(displayMode === 'deformation' ? 'none' : 'deformation')}
-            sx={displayMode === 'deformation' ? { backgroundColor: '#4080ff' } : {}}
+            onClick={() => handleModeChange('deformation')}
+            sx={{
+              minWidth: '80px',
+              backgroundColor: displayMode === 'deformation' ? '#FF4040' : 'rgba(60, 60, 60, 0.7)',
+              '&:hover': {
+                backgroundColor: displayMode === 'deformation' ? '#8B0000' : 'rgba(70, 70, 70, 0.7)'
+              }
+            }}
           >
             {t('deformation')}
           </ViewButton>
           <ViewButton 
-            onClick={() => setDisplayMode(displayMode === 'force' ? 'none' : 'force')}
-            sx={displayMode === 'force' ? { backgroundColor: '#4080ff' } : {}}
+            onClick={() => handleModeChange('force')}
+            sx={{
+              minWidth: '80px',
+              backgroundColor: displayMode === 'force' ? '#FF4040' : 'rgba(60, 60, 60, 0.7)',
+              '&:hover': {
+                backgroundColor: displayMode === 'force' ? '#8B0000' : 'rgba(70, 70, 70, 0.7)'
+              }
+            }}
           >
             {t('forceDistribution')}
           </ViewButton>

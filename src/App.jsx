@@ -1,12 +1,12 @@
 import { useState } from 'react';
 import { Box, AppBar, Toolbar, IconButton, Typography, Grid, Drawer, List, ListItem, ListItemText, ListItemSecondaryAction, TextField, Button } from '@mui/material';
-import { useLanguage } from './contexts/LanguageContext';
 import AIAssistant from './components/AIAssistant';
 import { styled } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import DeleteIcon from '@mui/icons-material/Delete';
 import ChartPanel from './components/ChartPanel';
 import ThreeScene from './components/ThreeScene';
+import { useLanguage } from './contexts/LanguageContext';
 
 const MainContainer = styled(Box)(({ theme }) => ({
   flexGrow: 1,
@@ -116,7 +116,7 @@ function App() {
                   size="small"
                   value={serialNumber}
                   onChange={handleInputChange}
-                  placeholder={t('inputSerialNumber')}
+                  placeholder="输入序列号"
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       color: '#fff',
@@ -131,7 +131,7 @@ function App() {
                   onClick={handleAddSerial}
                   sx={{ backgroundColor: '#4080ff', '&:hover': { backgroundColor: '#3070ff' } }}
                 >
-                  {t('add')}
+                  添加
                 </Button>
               </Box>
               <List>
