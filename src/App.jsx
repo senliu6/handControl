@@ -1,201 +1,212 @@
-import { useState } from 'react';
-import { Box, AppBar, Toolbar, IconButton, Typography, Grid, Drawer, List, ListItem, ListItemText, ListItemSecondaryAction, TextField, Button } from '@mui/material';
-import AIAssistant from './components/AIAssistant';
-import { styled } from '@mui/material/styles';
-import MenuIcon from '@mui/icons-material/Menu';
-import DeleteIcon from '@mui/icons-material/Delete';
+import { Box, Typography, IconButton, Chip } from '@mui/material';
 import ChartPanel from './components/ChartPanel';
 import ThreeScene from './components/ThreeScene';
-import { useLanguage } from './contexts/LanguageContext';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import LanguageIcon from '@mui/icons-material/Language';
+import { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
-const MainContainer = styled(Box)(({ theme }) => ({
-  flexGrow: 1,
-  height: '100vh',
-  backgroundColor: '#1a1a1a',
-  color: '#fff'
-}));
+const App = () => {
+  const { toggleLanguage, t } = useLanguage();
+  const socketRef = useRef(null);
+  const [forceData, setForceData] = useState(null);
+  const [socketStatus, setSocketStatus] = useState('disconnected');
+  const lastLogTime = useRef(0);
+  const prevSocketStatus = useRef('disconnected');
 
-const ContentContainer = styled(Box)({  
-  height: 'calc(100vh - 64px)',
-  padding: '20px',
-  width: '100%',
-  overflow: 'hidden',
-  position: 'relative',
-  zIndex: 0
-});
+  useEffect(() => {
+    socketRef.current = io('http://localhost:5000', {
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      transports: ['websocket'],
+    });
 
-const DrawerContainer = styled(Box)({
-  width: '60px',
-  height: '100vh',
-  backgroundColor: '#2d2d2d',
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  padding: '10px 0'
-});
+    socketRef.current.on('connect', () => {
+      setSocketStatus('connected');
+    });
 
-function App() {
-  const [open, setOpen] = useState(false);
-  const [serialNumber, setSerialNumber] = useState('');
-  const [serialList, setSerialList] = useState([]);
-  const { t, toggleLanguage, language } = useLanguage();
+    socketRef.current.on('data', (data) => {
+      const t_receive = Date.now();
+      const server_time = data.timestamp * 1000;
+      try {
+        const normalFlat = new Float32Array(new Uint8Array(data.normal).buffer);
+        const shearFlat = new Float32Array(new Uint8Array(data.shear).buffer);
+        const [height, width] = data.shape;
 
-  const handleDrawerToggle = () => {
-    setOpen(!open);
-  };
+        const normal2D = Array.from({ length: height }, (_, i) =>
+            Array.from(normalFlat.slice(i * width, (i + 1) * width))
+        );
+        const shear2D = Array.from({ length: height }, (_, i) => {
+          const row = [];
+          for (let j = 0; j < width; j++) {
+            const idx = (i * width + j) * 2;
+            const shearX = shearFlat[idx];
+            const shearY = shearFlat[idx + 1];
+            const cleanedShearX = isFinite(shearX) && shearX !== null ? shearX : 0;
+            const cleanedShearY = isFinite(shearY) && shearY !== null ? shearY : 0;
+            const clampedShearX = Math.max(-100, Math.min(100, cleanedShearX));
+            const clampedShearY = Math.max(-100, Math.min(100, cleanedShearY));
+            row.push([clampedShearX, clampedShearY]);
+          }
+          return row;
+        });
 
-  const handleInputChange = (event) => {
-    const value = event.target.value.replace(/[^a-zA-Z0-9]/g, '');
-    setSerialNumber(value);
-  };
+        const forceDataParsed = { normal: normal2D, shear: shear2D, timestamp: data.timestamp };
+        setForceData(forceDataParsed);
+      } catch (error) {
+        console.error('处理数据出错:', error);
+      }
+    });
 
-  const handleAddSerial = () => {
-    if (serialNumber && !serialList.includes(serialNumber)) {
-      setSerialList([...serialList, serialNumber]);
-      setSerialNumber('');
+    socketRef.current.on('connect_error', (error) => {
+      console.error('连接错误:', error.message);
+      setSocketStatus('error');
+    });
+
+    socketRef.current.on('disconnect', () => {
+      setSocketStatus('disconnected');
+    });
+
+    // 监听校准响应
+    socketRef.current.on('calibrate_response', (response) => {
+      if (response.status === 'success') {
+        toast.success(t('calibrationSuccess'));
+      } else {
+        toast.error(t('calibrationFailed') + ': ' + response.message);
+      }
+    });
+
+    return () => {
+      if (socketRef.current) {
+        socketRef.current.disconnect();
+      }
+    };
+  }, [t]);
+
+  useEffect(() => {
+    if (prevSocketStatus.current !== socketStatus) {
+      if (socketStatus === 'connected') {
+        toast.success(t('socketConnected'), {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      } else if (socketStatus === 'error' || socketStatus === 'disconnected') {
+        toast.error(t('socketDisconnected'), {
+          position: 'top-right',
+          autoClose: 3000,
+        });
+      }
+      prevSocketStatus.current = socketStatus;
+    }
+  }, [socketStatus, t]);
+
+  const getStatusChip = () => {
+    switch (socketStatus) {
+      case 'connected':
+        return (
+            <Chip
+                label={t('connected')}
+                color="success"
+                size="small"
+                sx={{ backgroundColor: '#4caf50', color: '#fff' }}
+            />
+        );
+      case 'disconnected':
+        return (
+            <Chip
+                label={t('disconnected')}
+                color="error"
+                size="small"
+                sx={{ backgroundColor: '#f44336', color: '#fff' }}
+            />
+        );
+      case 'error':
+        return (
+            <Chip
+                label={t('error')}
+                color="error"
+                size="small"
+                sx={{ backgroundColor: '#f44336', color: '#fff' }}
+            />
+        );
+      default:
+        return (
+            <Chip
+                label={t('unknown')}
+                color="default"
+                size="small"
+                sx={{ backgroundColor: '#757575', color: '#fff' }}
+            />
+        );
     }
   };
 
-  const handleDeleteSerial = (index) => {
-    const newList = serialList.filter((_, i) => i !== index);
-    setSerialList(newList);
-  };
-
-  const handleSerialClick = (serial) => {
-    alert(`点击了序列号: ${serial}`);
-  };
-
   return (
-    <MainContainer>
-      <AppBar position="static" sx={{ backgroundColor: '#2d2d2d', zIndex: 1300 }}>
-        <Toolbar>
-          <IconButton
-            size="large"
-            edge="start"
-            color="inherit"
-            aria-label="menu"
-            onClick={handleDrawerToggle}
-            sx={{ mr: 2 }}
-          >
-            <MenuIcon />
-          </IconButton>
-          <Typography variant="h6" component="div" sx={{ flexGrow: 1 }}>
-            {t('title')}
-          </Typography>
-          <Button
-            color="inherit"
-            onClick={toggleLanguage}
-            sx={{ ml: 2 }}
-          >
-            {language === 'zh' ? 'EN' : '中文'}
-          </Button>
-        </Toolbar>
-      </AppBar>
-      <Box sx={{ display: 'flex' }}>
-        <Drawer
-          variant="permanent"
-          sx={{
-            width: open ? 240 : 60,
-            transition: 'width 0.3s',
-            position: 'relative',
-            zIndex: 1200,
-            '& .MuiDrawer-paper': {
-              width: open ? 240 : 60,
-              transition: 'width 0.3s',
-              backgroundColor: '#2d2d2d',
-              color: '#fff',
-              overflowX: 'hidden',
-              position: 'relative'
-            }
-          }}
+      <LanguageProvider>
+        <Box
+            sx={{
+              width: '100vw',
+              height: '100vh',
+              display: 'flex',
+              flexDirection: 'column',
+              backgroundColor: '#121212',
+              overflow: 'hidden',
+              position: 'fixed',
+              top: 0,
+              left: 0,
+            }}
         >
-          {open ? (
-            <Box sx={{ p: 2 }}>
-              <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                <TextField
-                  size="small"
-                  value={serialNumber}
-                  onChange={handleInputChange}
-                  placeholder="输入序列号"
-                  sx={{
-                    '& .MuiOutlinedInput-root': {
-                      color: '#fff',
-                      '& fieldset': { borderColor: 'rgba(255, 255, 255, 0.23)' },
-                      '&:hover fieldset': { borderColor: 'rgba(255, 255, 255, 0.23)' },
-                      '&.Mui-focused fieldset': { borderColor: '#4080ff' }
-                    }
-                  }}
-                />
-                <Button
-                  variant="contained"
-                  onClick={handleAddSerial}
-                  sx={{ backgroundColor: '#4080ff', '&:hover': { backgroundColor: '#3070ff' } }}
-                >
-                  添加
-                </Button>
+          <Box
+              sx={{
+                height: '50px',
+                backgroundColor: '#1a1a1a',
+                marginBottom: '20px',
+                display: 'flex',
+                alignItems: 'center',
+              }}
+          >
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px' }}>
+              <img src="/src/assets/logo.png" alt="Logo" style={{ width: 200, height: 30 }} />
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Typography variant="body2" sx={{ color: '#fff' }}>
+                  {t('connectionStatus')}:
+                </Typography>
+                {getStatusChip()}
               </Box>
-              <List>
-                {serialList.map((serial, index) => (
-                  <ListItem
-                    key={index}
-                    onClick={() => handleSerialClick(serial)}
-                    sx={{ cursor: 'pointer' }}
-                  >
-                    <ListItemText primary={serial} />
-                    <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        onClick={() => handleDeleteSerial(index)}
-                        sx={{ color: '#fff' }}
-                      >
-                        <DeleteIcon />
-                      </IconButton>
-                    </ListItemSecondaryAction>
-                  </ListItem>
-                ))}
-              </List>
             </Box>
-          ) : (
-            <List>
-              {serialList.map((serial, index) => (
-                <ListItem
-                  key={index}
-                  onClick={() => handleSerialClick(serial)}
-                  sx={{ cursor: 'pointer', px: 1 }}
-                >
-                  <ListItemText
-                    primary={serial.slice(0, 3) + (serial.length > 3 ? '...' : '')}
-                    sx={{ '& .MuiListItemText-primary': { fontSize: '0.75rem' } }}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      onClick={() => handleDeleteSerial(index)}
-                      sx={{ color: '#fff' }}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
-        </Drawer>
-        <ContentContainer>
-          <Grid container spacing={3} sx={{ height: '100%', margin: '-20px', width: 'calc(100% + 40px)' }}>
-            <Grid item xs={8} sx={{ height: '100%' }}>
-              <ThreeScene />
-            </Grid>
-            <Grid item xs={4} sx={{ height: '100%' }}>
-              <ChartPanel />
-            </Grid>
-          </Grid>
-        </ContentContainer>
-      </Box>
-      <AIAssistant />
-    </MainContainer>
+            <IconButton onClick={toggleLanguage} sx={{ color: '#fff', ml: 2 }}>
+              <LanguageIcon />
+            </IconButton>
+          </Box>
+          <Box sx={{ display: 'flex', height: 'calc(100% - 70px)', mb: 2 }}>
+            <Box sx={{ flex: '0 0 30%', height: '100%', overflow: 'hidden' }}>
+              <ChartPanel forceData={forceData} socketStatus={socketStatus} />
+            </Box>
+            <Box
+                sx={{
+                  flex: '0 0 70%',
+                  height: '100%',
+                  overflow: 'hidden',
+                  mr: 2,
+                  display: 'flex',
+                  flexDirection: 'column',
+                }}
+            >
+              <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                <Typography variant="h3" sx={{ color: '#fff', margin: '0px 20px' }}>
+                  {t('DM-Tac')}
+                </Typography>
+              </Box>
+              <ThreeScene forceData={forceData} socket={socketRef.current} style={{ flexGrow: 1 }} />
+            </Box>
+          </Box>
+        </Box>
+        <ToastContainer position="top-right" autoClose={3000} />
+      </LanguageProvider>
   );
-}
+};
 
 export default App;
