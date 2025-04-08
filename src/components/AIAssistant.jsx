@@ -368,8 +368,8 @@ const AIAssistant = () => {
               size="small"
               value={message}
               onChange={handleMessageChange}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
+              onKeyPress={(e) => {
+                if (e.key === 'Enter') {
                   e.preventDefault();
                   handleSubmit(e);
                 }

@@ -1,6 +1,7 @@
 {
   "name": "hand",
   "version": "1.0.0",
+  "main": "launcher.js",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -9,17 +10,42 @@
     "@mui/material": "^6.4.6",
     "@types/three": "^0.174.0",
     "echarts": "^5.6.0",
-    "rc-slider": "^11.1.8",
-    "react-toastify": "^11.0.5",
-    "socket.io-client": "^4.8.1",
     "three": "^0.174.0"
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^28.2.0",
+    "electron-builder": "^24.9.1",
+    "pkg": "^5.8.1",
     "vite": "^6.2.0"
   },
   "scripts": {
     "dev": "vite",
-    "build": "vite build"
+    "build": "vite build",
+    "electron:dev": "electron .",
+    "electron:build": "vite build && electron-builder --win",
+    "pkg": "pkg . --targets node18-win-x64 --output dist/hand.exe"
+  },
+  "pkg": {
+    "scripts": "launcher.js",
+    "assets": "dist/**/*",
+    "targets": ["node18-win-x64"],
+    "outputPath": "dist"
+  },
+  "build": {
+    "appId": "com.hand.app",
+    "productName": "3D可视化分析系统",
+    "directories": {
+      "output": "dist_electron"
+    },
+    "win": {
+      "target": ["nsis"],
+      "icon": "public/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true
+    }
   }
 }
