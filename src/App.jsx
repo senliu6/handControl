@@ -6,16 +6,17 @@ import LanguageIcon from '@mui/icons-material/Language';
 import { useEffect, useRef, useState } from 'react';
 import { io } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
+import pako from 'pako';
 import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
-    const { toggleLanguage, t } = useLanguage();
+    const { toggleLanguage, t, language } = useLanguage();
     const socketRef = useRef(null);
     const [forceData, setForceData] = useState(null);
     const [socketStatus, setSocketStatus] = useState('disconnected');
     const lastLogTime = useRef(0);
     const prevSocketStatus = useRef('disconnected');
-    const [serverFps, setServerFps] = useState(0); // 新增状态用于存储服务器帧率
+    const [serverFps, setServerFps] = useState(0);
 
     useEffect(() => {
         socketRef.current = io('http://localhost:5000', {
@@ -30,13 +31,24 @@ const App = () => {
         });
 
         socketRef.current.on('data', (data) => {
-            const t_receive = Date.now();
-            const server_time = data.timestamp * 1000;
-            // console.log('接收到的原始 WebSocket 数据:', data); // 打印原始数据
+            const tStart = performance.now();
+            const { metadata, normal, shear, arrows } = data;
+            const [height, width] = metadata.shape;
+
             try {
-                const normalFlat = new Float32Array(new Uint8Array(data.normal).buffer);
-                const shearFlat = new Float32Array(new Uint8Array(data.shear).buffer);
-                const [height, width] = data.shape;
+                // 解压时间
+                const tDecompStart = performance.now();
+                const normalDecompressed = pako.inflate(new Uint8Array(normal)).buffer;
+                const shearDecompressed = pako.inflate(new Uint8Array(shear)).buffer;
+                const arrowsDecompressed = pako.inflate(new Uint8Array(arrows)).buffer;
+                const tDecompEnd = performance.now();
+                console.log(`Decompression time: ${tDecompEnd - tDecompStart} ms`);
+
+                // 数据解析时间
+                const tParseStart = performance.now();
+                const normalFlat = new Float32Array(normalDecompressed);
+                const shearFlat = new Float32Array(shearDecompressed);
+                const arrowsFlat = new Float32Array(arrowsDecompressed);
 
                 const normal2D = Array.from({ length: height }, (_, i) =>
                     Array.from(normalFlat.slice(i * width, (i + 1) * width))
@@ -56,17 +68,34 @@ const App = () => {
                     return row;
                 });
 
+                const arrowCount = arrowsFlat.length / 4;
+                const arrowsData = [];
+                for (let i = 0; i < arrowCount; i++) {
+                    const idx = i * 4;
+                    arrowsData.push({
+                        start: [arrowsFlat[idx], arrowsFlat[idx + 1]],
+                        end: [arrowsFlat[idx + 2], arrowsFlat[idx + 3]],
+                    });
+                }
 
                 const forceDataParsed = {
                     normal: normal2D,
                     shear: shear2D,
-                    arrows: data.arrows, // 添加 arrows 字段
-                    timestamp: data.timestamp
+                    arrows: arrowsData,
+                    timestamp: metadata.timestamp
                 };
-                // console.log('解析后的 forceData:', forceDataParsed); // 打印解析后的数据
-                // console.log('forceData.arrows:', forceDataParsed.arrows); // 专门打印 arrows
+                const tParseEnd = performance.now();
+                console.log(`Data parsing time: ${tParseEnd - tParseStart} ms`);
+
+                // 设置状态时间（包括React渲染开销）
+                const tSetStart = performance.now();
                 setForceData(forceDataParsed);
-                setServerFps(data.serverFps || 0); // 设置服务器帧率
+                setServerFps(metadata.serverFps || 0);
+                const tSetEnd = performance.now();
+                console.log(`State update time: ${tSetEnd - tSetStart} ms`);
+
+                const tEnd = performance.now();
+                console.log(`Total client processing time: ${tEnd - tStart} ms`);
             } catch (error) {
                 console.error('处理数据出错:', error);
             }
@@ -81,7 +110,6 @@ const App = () => {
             setSocketStatus('disconnected');
         });
 
-        // 监听校准响应
         socketRef.current.on('calibrate_response', (response) => {
             if (response.status === 'success') {
                 toast.success(t('calibrationSuccess'));
@@ -155,6 +183,11 @@ const App = () => {
         }
     };
 
+    const handleLanguageSwitch = () => {
+        toggleLanguage();
+        window.location.reload();
+    };
+
     return (
         <LanguageProvider>
             <Box
@@ -172,15 +205,14 @@ const App = () => {
             >
                 <Box
                     sx={{
-                        height: '50px',
-                        backgroundColor: '#1a1a1a',
-                        marginBottom: '20px',
+                        height: '120px',
+                        backgroundColor: '#121212',
                         display: 'flex',
                         alignItems: 'center',
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px' }}>
-                        <img src="/src/assets/logo.png" alt="Logo" style={{ width: 200, height: 30 }} />
+                        <img src="/src/assets/logo.png" alt="Logo" style={{ width: 360, height: 60 }} />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" sx={{ color: '#fff' }}>
                                 {t('connectionStatus')}:
@@ -188,11 +220,16 @@ const App = () => {
                             {getStatusChip()}
                         </Box>
                     </Box>
-                    <IconButton onClick={toggleLanguage} sx={{ color: '#fff', ml: 2 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
+                        <Typography variant="h3" sx={{ color: '#fff', margin: '0px 20px' }}>
+                            {t('DM-Tac')}
+                        </Typography>
+                    </Box>
+                    <IconButton onClick={handleLanguageSwitch} sx={{ color: '#fff', ml: 2 }}>
                         <LanguageIcon />
                     </IconButton>
                 </Box>
-                <Box sx={{ display: 'flex', height: 'calc(100% - 70px)', mb: 2 }}>
+                <Box sx={{ display: 'flex', height: 'calc(100% - 10px)', mb: 2 }}>
                     <Box sx={{ flex: '0 0 30%', height: '100%', overflow: 'hidden' }}>
                         <ChartPanel forceData={forceData} socketStatus={socketStatus} />
                     </Box>
@@ -206,12 +243,13 @@ const App = () => {
                             flexDirection: 'column',
                         }}
                     >
-                        <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-                            <Typography variant="h3" sx={{ color: '#fff', margin: '0px 20px' }}>
-                                {t('DM-Tac')}
-                            </Typography>
-                        </Box>
-                        <ThreeScene forceData={forceData} socket={socketRef.current} serverFps={serverFps} style={{ flexGrow: 1 }} />
+                        <ThreeScene
+                            forceData={forceData}
+                            socket={socketRef.current}
+                            serverFps={serverFps}
+                            language={language}
+                            style={{ flexGrow: 1 }}
+                        />
                     </Box>
                 </Box>
             </Box>
