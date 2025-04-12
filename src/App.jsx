@@ -30,21 +30,30 @@ const App = () => {
             setSocketStatus('connected');
         });
 
+        socketRef.current.on('status', (data) => {
+            console.log('Server status:', data.message);
+        });
+
+        socketRef.current.on('sensor_initialized', (response) => {
+            if (response.status === 'success') {
+                toast.success(t('sensorInitialized'));
+            } else {
+                toast.error(t('sensorInitFailed') + ': ' + response.message);
+            }
+        });
+
         socketRef.current.on('data', (data) => {
             const tStart = performance.now();
             const { metadata, normal, shear, arrows } = data;
             const [height, width] = metadata.shape;
 
             try {
-                // 解压时间
                 const tDecompStart = performance.now();
                 const normalDecompressed = pako.inflate(new Uint8Array(normal)).buffer;
                 const shearDecompressed = pako.inflate(new Uint8Array(shear)).buffer;
                 const arrowsDecompressed = pako.inflate(new Uint8Array(arrows)).buffer;
                 const tDecompEnd = performance.now();
-                console.log(`Decompression time: ${tDecompEnd - tDecompStart} ms`);
 
-                // 数据解析时间
                 const tParseStart = performance.now();
                 const normalFlat = new Float32Array(normalDecompressed);
                 const shearFlat = new Float32Array(shearDecompressed);
@@ -85,17 +94,12 @@ const App = () => {
                     timestamp: metadata.timestamp
                 };
                 const tParseEnd = performance.now();
-                console.log(`Data parsing time: ${tParseEnd - tParseStart} ms`);
 
-                // 设置状态时间（包括React渲染开销）
                 const tSetStart = performance.now();
                 setForceData(forceDataParsed);
                 setServerFps(metadata.serverFps || 0);
                 const tSetEnd = performance.now();
-                console.log(`State update time: ${tSetEnd - tSetStart} ms`);
 
-                const tEnd = performance.now();
-                console.log(`Total client processing time: ${tEnd - tStart} ms`);
             } catch (error) {
                 console.error('处理数据出错:', error);
             }
@@ -222,7 +226,7 @@ const App = () => {
                     </Box>
                     <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
                         <Typography variant="h3" sx={{ color: '#fff', margin: '0px 20px' }}>
-                            {t('DM-Tac')}
+                            {t('DM_Tac')}
                         </Typography>
                     </Box>
                     <IconButton onClick={handleLanguageSwitch} sx={{ color: '#fff', ml: 2 }}>

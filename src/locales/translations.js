@@ -29,7 +29,10 @@ export const translations = {
     slideButtonDensity:'adjust arrow density',
     notPressSensor:'Please do not press the sensor during calibration.',
     Framerate:'Framerate',
-    Temperature:'Temperature'
+    Temperature:'Temperature',
+    fetchingSensorData: 'Fetching sensor data...',
+    sensorInitialized: 'Sensor initialized successfully',
+    sensorInitFailed: 'Sensor initialization failed',
   },
   zh: {
     // App.jsx
@@ -44,6 +47,7 @@ export const translations = {
     calibrationSuccess: '校准成功',
     calibrationFailed: '校准失败',
     dmTac: 'DM-Tac',
+
 
     // ThreeScene.jsx
     title: '手部力量可视化',
@@ -61,6 +65,10 @@ export const translations = {
     slideButtonDensity:'滑动按钮调节箭头疏密度',
     notPressSensor:'校准时请勿按压传感器',
     Framerate:'帧率',
-    Temperature:'温度'
+    Temperature:'温度',
+    fetchingSensorData: '正在获取传感器数据...',
+    sensorInitialized: '传感器初始化成功',
+    sensorInitFailed: '传感器初始化失败',
+
   },
 };

@@ -1,1 +1,5 @@
 node_modules/
+dist/
+dist-pkg/
+dist_pkg/
+dist_electron/

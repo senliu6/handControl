@@ -10,7 +10,7 @@ const path = require('path');
                 outDir: 'dist',
                 assetsDir: 'assets',
                 emptyOutDir: true,
-                minify: 'esbuild',
+                minify: 'false',
                 target: 'esnext',
                 sourcemap: true, // 启用 sourcemap，便于追溯
                 rollupOptions: {

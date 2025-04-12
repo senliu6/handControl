@@ -1,7 +1,8 @@
 {
   "name": "hand",
   "version": "1.0.0",
-  "main": "launcher.js",
+  "main": "main.js",
+  "bin": "main.js",
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
@@ -15,6 +16,7 @@
   },
   "devDependencies": {
     "@vitejs/plugin-react": "^4.3.4",
+    "cross-env": "^7.0.3",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",
     "pkg": "^5.8.1",
@@ -23,17 +25,21 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "electron:dev": "electron .",
-    "electron:build": "vite build && electron-builder --win",
-    "pkg": "pkg . --targets node18-win-x64 --output dist/hand.exe"
+    "electron:dev": "cross-env NODE_ENV=development electron .",
+    "pkg:build": "vite build && pkg .",
+    "pkg:build:win": "vite build && pkg . --targets node18-win-x64",
+    "pkg:build:mac": "vite build && pkg . --targets node18-mac-x64",
+    "pkg:build:linux": "vite build && pkg . --targets node18-linux-x64"
   },
   "pkg": {
-    "scripts": "launcher.js",
+    "scripts": "main.js",
     "assets": "dist/**/*",
     "targets": [
-      "node18-win-x64"
+      "node18-win-x64",
+      "node18-mac-x64",
+      "node18-linux-x64"
     ],
-    "outputPath": "dist"
+    "outputPath": "dist_pkg"
   },
   "build": {
     "appId": "com.hand.app",
@@ -41,11 +47,28 @@
     "directories": {
       "output": "dist_electron"
     },
+    "files": [
+      "dist/**/*",
+      "main.js"
+    ],
+    "asar": true,
     "win": {
       "target": [
         "nsis"
       ],
       "icon": "public/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "public/icon.icns"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "icon": "public/icon.png"
     },
     "nsis": {
       "oneClick": false,

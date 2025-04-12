@@ -1,0 +1,70 @@
+{
+  "type": "object",
+  "properties": {
+    "appId": {
+      "type": "string",
+      "default": "com.hand.app"
+    },
+    "productName": {
+      "type": "string",
+      "default": "3D可视化分析系统"
+    },
+    "directories": {
+      "type": "object",
+      "properties": {
+        "output": {
+          "type": "string",
+          "default": "dist_electron"
+        }
+      }
+    },
+    "files": [
+      "dist/**/*",
+      "main.js"
+    ],
+    "win": {
+      "type": "object",
+      "properties": {
+        "target": [
+          "nsis"
+        ],
+        "icon": "public/icon.ico"
+      }
+    },
+    "mac": {
+      "type": "object",
+      "properties": {
+        "target": [
+          "dmg"
+        ],
+        "icon": "public/icon.icns"
+      }
+    },
+    "linux": {
+      "type": "object",
+      "properties": {
+        "target": [
+          "AppImage"
+        ],
+        "icon": "public/icon.png"
+      }
+    },
+    "nsis": {
+      "type": "object",
+      "properties": {
+        "oneClick": {
+          "type": "boolean",
+          "default": false
+        },
+        "allowToChangeInstallationDirectory": {
+          "type": "boolean",
+          "default": true
+        },
+        "createDesktopShortcut": {
+          "type": "boolean",
+          "default": true
+        }
+      }
+    }
+  }
+}
