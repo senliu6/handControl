@@ -1,16 +1,16 @@
-import { Box, Typography, IconButton, Chip } from '@mui/material';
+import {Box, Typography, IconButton, Chip} from '@mui/material';
 import ChartPanel from './components/ChartPanel';
 import ThreeScene from './components/ThreeScene';
-import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
+import {LanguageProvider, useLanguage} from './contexts/LanguageContext';
 import LanguageIcon from '@mui/icons-material/Language';
-import { useEffect, useRef, useState } from 'react';
-import { io } from 'socket.io-client';
-import { ToastContainer, toast } from 'react-toastify';
+import {useEffect, useRef, useState} from 'react';
+import {io} from 'socket.io-client';
+import {ToastContainer, toast} from 'react-toastify';
 import pako from 'pako';
 import 'react-toastify/dist/ReactToastify.css';
 
 const App = () => {
-    const { toggleLanguage, t, language } = useLanguage();
+    const {toggleLanguage, t, language} = useLanguage();
     const socketRef = useRef(null);
     const [forceData, setForceData] = useState(null);
     const [socketStatus, setSocketStatus] = useState('disconnected');
@@ -44,7 +44,7 @@ const App = () => {
 
         socketRef.current.on('data', (data) => {
             const tStart = performance.now();
-            const { metadata, normal, shear, arrows } = data;
+            const {metadata, normal, shear, arrows} = data;
             const [height, width] = metadata.shape;
 
             try {
@@ -59,10 +59,10 @@ const App = () => {
                 const shearFlat = new Float32Array(shearDecompressed);
                 const arrowsFlat = new Float32Array(arrowsDecompressed);
 
-                const normal2D = Array.from({ length: height }, (_, i) =>
+                const normal2D = Array.from({length: height}, (_, i) =>
                     Array.from(normalFlat.slice(i * width, (i + 1) * width))
                 );
-                const shear2D = Array.from({ length: height }, (_, i) => {
+                const shear2D = Array.from({length: height}, (_, i) => {
                     const row = [];
                     for (let j = 0; j < width; j++) {
                         const idx = (i * width + j) * 2;
@@ -153,8 +153,8 @@ const App = () => {
                     <Chip
                         label={t('connected')}
                         color="success"
-                        size="small"
-                        sx={{ backgroundColor: '#4caf50', color: '#fff' }}
+                        size="14px"
+                        sx={{backgroundColor: '#4caf50', color: '#fff', padding: '10px'}}
                     />
                 );
             case 'disconnected':
@@ -162,8 +162,8 @@ const App = () => {
                     <Chip
                         label={t('disconnected')}
                         color="error"
-                        size="small"
-                        sx={{ backgroundColor: '#f44336', color: '#fff' }}
+                        size="14px"
+                        sx={{backgroundColor: '#f44336', color: '#fff'}}
                     />
                 );
             case 'error':
@@ -171,8 +171,8 @@ const App = () => {
                     <Chip
                         label={t('error')}
                         color="error"
-                        size="small"
-                        sx={{ backgroundColor: '#f44336', color: '#fff' }}
+                        size="14px"
+                        sx={{backgroundColor: '#f44336', color: '#fff'}}
                     />
                 );
             default:
@@ -180,8 +180,8 @@ const App = () => {
                     <Chip
                         label={t('unknown')}
                         color="default"
-                        size="small"
-                        sx={{ backgroundColor: '#757575', color: '#fff' }}
+                        size="14px"
+                        sx={{backgroundColor: '#757575', color: '#fff'}}
                     />
                 );
         }
@@ -200,7 +200,7 @@ const App = () => {
                     height: '100vh',
                     display: 'flex',
                     flexDirection: 'column',
-                    backgroundColor: '#121212',
+                    backgroundColor: '#000000',
                     overflow: 'hidden',
                     position: 'fixed',
                     top: 0,
@@ -210,35 +210,54 @@ const App = () => {
                 <Box
                     sx={{
                         height: '120px',
-                        backgroundColor: '#121212',
+                        backgroundColor: '#000000',
                         display: 'flex',
                         alignItems: 'center',
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px' }}>
-                    <img src={new URL('./assets/logo.png', import.meta.url).href} alt="Logo" style={{ width: 360, height: 60 }} />                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Typography variant="body2" sx={{ color: '#fff' }}>
+                    <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px'}}>
+                        <img
+                            src={new URL('./assets/logo.png', import.meta.url).href}
+                            alt="Logo"
+                            style={{width: 400, height: 60, marginLeft: '20px'}}
+                        />
+                        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
+                            <Typography variant="body2" sx={{color: '#fff', fontSize: '18px'}}>
                                 {t('connectionStatus')}:
                             </Typography>
                             {getStatusChip()}
                         </Box>
+                        {/* 将语言切换按钮移动到这里 */}
+                        <Box
+                            onClick={handleLanguageSwitch}
+                            sx={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                marginLeft: 'auto', // 推到右侧
+                                marginRight: '20px',
+                            }}
+                        >
+                            <IconButton sx={{color: '#fff', ml: 2}}>
+                                <LanguageIcon/>
+                            </IconButton>
+                            <Typography variant="body1" sx={{color: '#fff', ml: 1, fontSize: '16px'}}>
+                                {language === 'en' ? 'EN >' : 'ZH >'}
+                            </Typography>
+                        </Box>
                     </Box>
-                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '20px' }}>
-                        <Typography variant="h3" sx={{ color: '#fff', margin: '0px 20px' }}>
+                    <Box sx={{display: 'flex', justifyContent: 'flex-end', marginTop: '10px'}}>
+                        <Typography variant="h3" sx={{color: '#fff', margin: '10px 20px'}}>
                             {t('DM_Tac')}
                         </Typography>
                     </Box>
-                    <IconButton onClick={handleLanguageSwitch} sx={{ color: '#fff', ml: 2 }}>
-                        <LanguageIcon />
-                    </IconButton>
                 </Box>
-                <Box sx={{ display: 'flex', height: 'calc(100% - 10px)', mb: 2 }}>
-                    <Box sx={{ flex: '0 0 30%', height: '100%', overflow: 'hidden' }}>
-                        <ChartPanel forceData={forceData} socketStatus={socketStatus} />
+                <Box sx={{display: 'flex', height: 'calc(92% - 10px)', mb: 2}}>
+                    <Box sx={{flex: '0 0 20%', height: '100%', overflow: 'hidden'}}>
+                        <ChartPanel forceData={forceData} socketStatus={socketStatus}/>
                     </Box>
                     <Box
                         sx={{
-                            flex: '0 0 70%',
+                            flex: '0 0 80%',
                             height: '100%',
                             overflow: 'hidden',
                             mr: 2,
@@ -246,20 +265,18 @@ const App = () => {
                             flexDirection: 'column',
                         }}
                     >
-                        {console.log('[App] Rendering ThreeScene, forceData:', forceData ? 'present' : 'null')}
-                       { socketStatus === 'connected' && (
-    <ThreeScene
-        forceData={forceData}
-        socket={socketRef.current}
-        serverFps={serverFps}
-        language={language}
-        style={{ flexGrow: 1 }}
-    />
-)}
+                        <ThreeScene
+                            forceData={forceData}
+                            socket={socketRef.current}
+                            serverFps={serverFps}
+                            language={language}
+                            style={{flexGrow: 1}}
+                        />
+
                     </Box>
                 </Box>
             </Box>
-            <ToastContainer position="top-right" autoClose={3000} />
+            <ToastContainer position="top-right" autoClose={3000}/>
         </LanguageProvider>
     );
 };

@@ -14,7 +14,7 @@ export default defineConfig({
       }
     },
     sourcemap: false,
-    minify: 'esbuild',
+    minify: 'false',
     target: 'esnext',
     outDir: 'dist',
     assetsDir: 'assets',

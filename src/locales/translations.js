@@ -33,6 +33,7 @@ export const translations = {
     fetchingSensorData: 'Fetching sensor data...',
     sensorInitialized: 'Sensor initialized successfully',
     sensorInitFailed: 'Sensor initialization failed',
+    onlySupports:'Only supports displaying one sensor at a time.'
   },
   zh: {
     // App.jsx
@@ -69,6 +70,7 @@ export const translations = {
     fetchingSensorData: '正在获取传感器数据...',
     sensorInitialized: '传感器初始化成功',
     sensorInitFailed: '传感器初始化失败',
+    onlySupports:'仅支持同时显示一个传感器'
 
   },
 };

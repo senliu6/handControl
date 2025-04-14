@@ -28,7 +28,7 @@ const ResetButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
     top: '180px',
     right: '50px',
-    backgroundColor: 'rgba(45, 45, 45, 0.7)',
+    backgroundColor: 'rgba(35, 37, 40, 0.7)',
     color: '#fff',
     '&:hover': {backgroundColor: 'rgba(45, 45, 45, 0.9)'},
     display: 'flex',
@@ -40,7 +40,7 @@ const CalibrateButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
     top: '10px',
     left: '10px',
-    backgroundColor: '#ff4040',
+    backgroundColor: '#e61937',
     color: '#fff',
     '&:hover': {backgroundColor: '#cc0000'},
     '&:active': {
@@ -93,7 +93,7 @@ const CircleValue = styled(Box, {
     width: '30px',
     height: '30px',
     borderRadius: '50%',
-    backgroundColor: isRight ? '#888' : '#111',
+    backgroundColor: isRight ? '#6e7274' : '#121314',
     display: 'flex',
     justifyContent: 'center',
     alignItems: 'center',
@@ -141,7 +141,7 @@ const InfoContainer = styled(Box)(({theme}) => ({
 //输入序列号
 const SequenceContainer = styled(Box)(({theme}) => ({
     position: 'absolute',
-    top: '250px',
+    top: '400px',
     right: '20px',
     width: '200px',
     backgroundColor: 'transparent',
@@ -152,7 +152,7 @@ const SequenceContainer = styled(Box)(({theme}) => ({
 }));
 //添加序列号按钮
 const AddButton = styled(IconButton)(({theme}) => ({
-    backgroundColor: '#ff4040',
+    backgroundColor: '#e61937',
     color: '#fff',
     borderRadius: '10px',
     '&:hover': {backgroundColor: '#cc0000'},
@@ -176,11 +176,16 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
     const [displayMode, setDisplayMode] = useState('deformation');
     const [sliderValue, setSliderValue] = useState(5);
     // 修改 marks 为 11 个刻度
-    const marks = Array.from({ length: 11 }, (_, i) => ({
+    const marks = Array.from({ length: 12 }, (_, i) => ({
         value: i,
         label: i, // 每个刻度显示数字 0 到 10
     })).reduce((acc, mark) => {
-        acc[mark.value] = mark.label;
+        if ( mark.label === 0 || mark.label === 11 ){
+
+        }else {
+            acc[mark.value] = mark.label;
+        }
+
         return acc;
     }, {});
     const isInitialRender = useRef(true);
@@ -195,14 +200,14 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
     const [renderKey, setRenderKey] = useState(0); // 新增状态用于强制渲染
     const [isTooltipOpen, setIsTooltipOpen] = useState(false); // 添加状态控制 Tooltip 显示
 
-    console.log('[ThreeScene] Rendering component', {
-        forceData: forceData ? 'present' : 'null',
-        socketConnected: socket?.connected,
-        sequenceNumber,
-        sequenceListLength: sequenceList.length,
-        displayMode,
-        sliderValue
-    });
+    // console.log('[ThreeScene] Rendering component', {
+    //     forceData: forceData ? 'present' : 'null',
+    //     socketConnected: socket?.connected,
+    //     sequenceNumber,
+    //     sequenceListLength: sequenceList.length,
+    //     displayMode,
+    //     sliderValue
+    // });
 
     const handleCalibrate = () => {
         if (socket && socket.connected) {
@@ -240,34 +245,34 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
     const updateMesh = (data) => {
         try {
             const t_start = Date.now();
-    
+
             if (!data || !data.normal || !Array.isArray(data.normal) || data.normal.length === 0) {
                 console.log('[ThreeScene] forceData invalid or empty');
                 return;
             }
-    
+
             const height = data.normal.length;
             const width = data.normal[0]?.length || 0;
             const normal = data.normal;
             const shear = data.shear;
-    
+
             if (width === 0 || !Array.isArray(normal[0])) {
                 console.log('[ThreeScene] Invalid normal data dimensions');
                 return;
             }
-    
+
             if (!shear || !Array.isArray(shear) || shear.length !== height || shear[0].length !== width) {
                 console.warn('[ThreeScene] Shear data invalid or mismatched with normal data');
                 return;
             }
-    
+
             const containerWidth = containerRef.current.clientWidth;
             const targetWidth = containerWidth / 3;
             const step = 1;
             const newWidth = Math.floor(width / step);
             const newHeight = Math.floor(height / step);
             const scale = targetWidth / (newWidth * step);
-    
+
             const baseDepthScale = 10.0;
             const depthScale = baseDepthScale * 5;
             const hotColors = [
@@ -277,7 +282,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 { r: 230 / 255, g: 25 / 255, b: 55 / 255 },
                 { r: 230 / 255, g: 0 / 255, b: 18 / 255 },
             ];
-    
+
             const arrowColors = [
                 { r: 5 / 255, g: 0 / 255, b: 20 / 255 },
                 { r: 80 / 255, g: 0 / 255, b: 120 / 255 },
@@ -286,7 +291,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 { r: 255 / 255, g: 230 / 255, b: 150 / 255 },
                 { r: 5 / 255, g: 0 / 255, b: 20 / 255 },
             ];
-    
+
             let normalMin = Infinity, normalMax = -Infinity;
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
@@ -298,7 +303,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 }
             }
             const normalRange = normalMax - normalMin > 0 ? normalMax - normalMin : 0;
-    
+
             const currentTime = Date.now();
             const shouldLog =
                 currentTime - lastLogTime.current > 1000 ||
@@ -307,17 +312,17 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 lastLogTime.current = currentTime;
                 lastNormalMax.current = normalMax;
             }
-    
+
             let geometry = geometryRef.current || new THREE.BufferGeometry();
             geometryRef.current = geometry;
-    
+
             const vertices = new Float32Array(newHeight * newWidth * 3);
             const colors = new Float32Array(newHeight * newWidth * 3);
             const indices = [];
-    
+
             const maxNormalValue = 0.5;
             const normalMaxFactor = Math.min(normalMax / maxNormalValue, 1.0);
-    
+
             let minZ = Infinity, maxZ = -Infinity;
             for (let y = 0; y < newHeight; y++) {
                 for (let x = 0; x < newWidth; x++) {
@@ -325,14 +330,14 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     const origX = x * step;
                     const n = isFinite(normal[origY][origX]) ? normal[origY][origX] : 0;
                     let z;
-    
+
                     if (normalRange === 0) {
                         z = 0;
                     } else {
                         const minThreshold = 0.05;
                         const dynamicThreshold = normalMax * 0.3;
                         const threshold = Math.max(minThreshold, dynamicThreshold);
-    
+
                         const absoluteThreshold = 0.1;
                         if (n <= threshold || n < absoluteThreshold) {
                             z = 0;
@@ -341,7 +346,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                             z = -adjustedNormal * depthScale * normalMaxFactor;
                         }
                     }
-    
+
                     const idx = (y * newWidth + x) * 3;
                     vertices[idx] = x * scale * step;
                     vertices[idx + 1] = y * scale * step;
@@ -350,10 +355,10 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     maxZ = Math.max(maxZ, z);
                 }
             }
-    
+
             const zRange = maxZ - minZ > 0 ? maxZ - minZ : 0;
             const hasDeformation = zRange > 0.01;
-    
+
             for (let y = 0; y < newHeight; y++) {
                 for (let x = 0; x < newWidth; x++) {
                     const idx = (y * newWidth + x) * 3;
@@ -365,7 +370,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     colors[idx + 2] = color.b;
                 }
             }
-    
+
             for (let y = 0; y < newHeight - 1; y++) {
                 for (let x = 0; x < newWidth - 1; x++) {
                     const topLeft = y * newWidth + x;
@@ -375,7 +380,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     indices.push(topLeft, bottomLeft, topRight, topRight, bottomLeft, bottomRight);
                 }
             }
-    
+
             if (geometry.attributes.position) {
                 geometry.attributes.position.array.set(vertices);
                 geometry.attributes.color.array.set(colors);
@@ -387,7 +392,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
             geometry.attributes.position.needsUpdate = true;
             geometry.attributes.color.needsUpdate = true;
             geometry.computeVertexNormals();
-    
+
             if (!meshRef.current) {
                 const material = new THREE.MeshBasicMaterial({
                     vertexColors: true,
@@ -396,25 +401,25 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 const mesh = new THREE.Mesh(geometry, material);
                 meshRef.current = mesh;
                 sceneRef.current.add(mesh);
-    
+
                 geometry.computeBoundingBox();
                 const box = geometry.boundingBox;
                 const center = box.getCenter(new THREE.Vector3());
                 mesh.position.set(-center.x, -center.y, -center.z);
             }
-    
+
             const baseArrowLength = 2.0;
             const maxArrowLength = 10.0;
             const baseArrowHeadLength = 0.5;
             const baseArrowHeadWidth = 0.5;
-    
+
             const minArrowLength = 4.0;
             const maxArrowLengthScale = 1.0;
             const minArrowHeadLength = 8;
             const maxArrowHeadLength = 0.5;
             const minArrowHeadWidth = 3;
             const maxArrowHeadWidth = 0.5;
-    
+
             const depressionPointsSet = new Set();
             if (hasDeformation) {
                 const normalThreshold = normalMax * 0.3;
@@ -429,18 +434,18 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     }
                 }
             }
-    
+
             const arrows = data.arrows;
             if (!arrows || !Array.isArray(arrows)) {
                 console.warn('[ThreeScene] Invalid or empty arrow data:', arrows);
                 return;
             }
-    
+
             const totalArrows = arrows.length;
             const sliderMax = 10;
             const sliderMid = 5;
             let targetArrowCount;
-    
+
             let adjustedSliderValue = sliderValue;
             if (sliderValue === 7) {
                 adjustedSliderValue = 8;
@@ -451,7 +456,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
             } else if (sliderValue === 24) {
                 adjustedSliderValue = 25;
             }
-    
+
             if (adjustedSliderValue === 0) {
                 targetArrowCount = 0;
             } else if (adjustedSliderValue === sliderMax) {
@@ -463,7 +468,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     (totalArrows / 2) + ((adjustedSliderValue - sliderMid) / (sliderMax - sliderMid)) * (totalArrows / 2)
                 );
             }
-    
+
             while (arrowPoolRef.current.length < arrows.length) {
                 const arrow = new THREE.ArrowHelper(
                     new THREE.Vector3(0, 0, 1),
@@ -479,12 +484,12 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 arrowsGroupRef.current.add(arrow);
                 arrowPoolRef.current.push(arrow);
             }
-    
+
             const styleFactor = Math.pow(sliderValue / 120, 2);
             const arrowLengthScale = minArrowLength + (maxArrowLengthScale - minArrowLength) * styleFactor;
             const arrowHeadLength = minArrowHeadLength + (maxArrowHeadLength - minArrowHeadLength) * styleFactor;
             const arrowHeadWidth = minArrowHeadWidth + (maxArrowHeadWidth - minArrowHeadWidth) * styleFactor;
-    
+
             let minArrowX = Infinity, maxArrowX = -Infinity;
             let minArrowY = Infinity, maxArrowY = -Infinity;
             for (let i = 0; i < arrows.length; i++) {
@@ -496,14 +501,14 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                 minArrowY = Math.min(minArrowY, start[1], end[1]);
                 maxArrowY = Math.max(maxArrowY, start[1], end[1]);
             }
-    
+
             const arrowRangeX = maxArrowX - minArrowX;
             const arrowRangeY = maxArrowY - minArrowY;
             const gridRangeX = width - 1;
             const gridRangeY = height - 1;
             const scaleFactorX = arrowRangeX > 0 ? gridRangeX / arrowRangeX : 1;
             const scaleFactorY = arrowRangeY > 0 ? gridRangeY / arrowRangeY : 1;
-    
+
             const selectedIndices = [];
             if (targetArrowCount > 0) {
                 const stepSize = totalArrows / Math.max(1, targetArrowCount);
@@ -514,7 +519,7 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     }
                 }
             }
-    
+
             let arrowCount = 0;
             for (let i = 0; i < arrowPoolRef.current.length; i++) {
                 const arrow = arrowPoolRef.current[i];
@@ -522,10 +527,10 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     const arrowData = arrows[i];
                     const start = arrowData.start;
                     const end = arrowData.end;
-    
+
                     const origX = (start[0] - minArrowX) * scaleFactorX;
                     const origY = (start[1] - minArrowY) * scaleFactorY;
-    
+
                     const tolerance = 1;
                     let isInDepression = false;
                     for (let dx = -tolerance; dx <= tolerance; dx++) {
@@ -540,19 +545,19 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                         }
                         if (isInDepression) break;
                     }
-    
+
                     if (!isInDepression) {
                         arrow.visible = false;
                         continue;
                     }
-    
+
                     let posX = origX * scale * step;
                     let posY = origY * scale * step;
-    
+
                     const mesh = meshRef.current;
                     const adjustedPosX = posX + mesh.position.x;
                     const adjustedPosY = posY + mesh.position.y;
-    
+
                     const mappedX = Math.floor(origX / step);
                     const mappedY = Math.floor(origY / step);
                     let posZ = 0;
@@ -561,9 +566,9 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                         posZ = vertices[idx + 2];
                     }
                     const adjustedPosZ = posZ + mesh.position.z;
-    
+
                     arrow.position.set(adjustedPosX, adjustedPosY, adjustedPosZ);
-    
+
                     const shearX = (end[0] - minArrowX) * scaleFactorX - origX;
                     const shearY = (end[1] - minArrowY) * scaleFactorY - origY;
                     let direction = new THREE.Vector3(shearX, shearY, 0);
@@ -572,16 +577,16 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     } else {
                         direction.normalize();
                     }
-    
+
                     const depth = zRange > 0 ? (maxZ - posZ) / zRange : 0;
                     const baseLength = baseArrowLength + (maxArrowLength - baseArrowLength) * depth * 0.5;
                     const arrowLength = baseLength * arrowLengthScale;
                     const adjustedArrowHeadLength = arrowHeadLength * (1 + depth * 0.5);
                     const adjustedArrowHeadWidth = adjustedArrowHeadLength * 0.5;
-    
+
                     const color = interpolateColor(depth, arrowColors);
                     const arrowColor = new THREE.Color(color.r, color.g, color.b);
-    
+
                     arrow.setDirection(direction);
                     arrow.setLength(arrowLength, adjustedArrowHeadLength, adjustedArrowHeadWidth);
                     arrow.setColor(arrowColor);
@@ -591,16 +596,26 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
                     arrow.visible = false;
                 }
             }
-    
+
+            // 如果最终绘制的箭头数量等于目标箭头数量，清空所有箭头
+            if (arrowCount === targetArrowCount && arrowCount > 0) {
+                console.log(`最终绘制箭头数量 (${arrowCount}) 等于目标箭头数量 (${targetArrowCount})，清空所有箭头`);
+                for (let i = 0; i < arrowPoolRef.current.length; i++) {
+                    const arrow = arrowPoolRef.current[i];
+                    arrow.visible = false;
+                }
+                arrowCount = 0; // 重置 arrowCount
+            }
+
             // 移除原有的清空逻辑，避免箭头闪烁
-            console.log('[ThreeScene] Arrows rendered:', { arrowCount, targetArrowCount });
-    
+            // console.log('[ThreeScene] Arrows rendered:', { arrowCount, targetArrowCount });
+
             const t_end = Date.now();
             if (shouldLog) {
                 setFrameRate(Math.round(1000 / (t_end - t_start)));
             }
-    
-            console.log('[ThreeScene] updateMesh completed');
+
+            // console.log('[ThreeScene] updateMesh completed');
         } catch (error) {
             console.error('[ThreeScene] Error in updateMesh:', error);
         }
@@ -634,7 +649,7 @@ useEffect(() => {
 
     const renderer = new THREE.WebGLRenderer({ antialias: true });
     renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    renderer.setClearColor(0x2d2d2d, 1);
+    renderer.setClearColor(0x232528, 1);//3d组件外部框背景
     containerRef.current.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
@@ -833,15 +848,15 @@ useEffect(() => {
 }, []); // 无依赖，仅挂载时运行
 
 useEffect(() => {
-    console.log('[ThreeScene] Mesh update useEffect', {
-        forceData: forceData ? {
-            normalRows: forceData.normal?.length,
-            arrows: forceData.arrows?.length,
-            timestamp: forceData.timestamp
-        } : 'null',
-        displayMode,
-        sliderValue
-    });
+    // console.log('[ThreeScene] Mesh update useEffect', {
+    //     forceData: forceData ? {
+    //         normalRows: forceData.normal?.length,
+    //         arrows: forceData.arrows?.length,
+    //         timestamp: forceData.timestamp
+    //     } : 'null',
+    //     displayMode,
+    //     sliderValue
+    // });
     if (!forceData || !forceData.normal) {
         console.log('[ThreeScene] forceData invalid or missing');
         return;
@@ -852,7 +867,7 @@ useEffect(() => {
         clearTimeout(updateMeshTimeout.current);
     }
     updateMeshTimeout.current = setTimeout(() => {
-        console.log('[ThreeScene] Updating mesh with valid forceData');
+        // console.log('[ThreeScene] Updating mesh with valid forceData');
         updateMesh(forceData);
     }, 100); // 100ms 防抖
 }, [forceData, displayMode, sliderValue]);
@@ -934,7 +949,7 @@ useEffect(() => {
                 display: 'flex',
                 flexDirection: 'column',
                 margin: '10PX 20px',
-                marginRight:'50px',
+                marginRight:'30px',
             }}
         >
             <ResetButton onClick={handleResetView} title={t('resetView')}>
@@ -1046,12 +1061,12 @@ useEffect(() => {
                         },
                     }}
                 >
-                <Box sx={{flex: 1, position: 'relative'}}
+                <Box sx={{flex: 1, position: 'relative',padding: '0 5px',}}
                      onMouseEnter={() => setIsTooltipOpen(true)} // 鼠标进入时显示 Tooltip
                      onMouseLeave={() => setIsTooltipOpen(false)} >
                     <Slider
                         min={0}
-                        max={10}
+                        max={11}
                         step={1}
                         value={sliderValue}
                         onChange={(value) => setSliderValue(value)}
@@ -1059,17 +1074,17 @@ useEffect(() => {
                         handleStyle={{
                             width: '20px', // 直接设置手柄样式
                             height: '20px',
-                            backgroundColor: '#777',
+                            backgroundColor: '#a0a5a7',
                             border: 'none',
                             marginTop: '-10px', // 调整位置以居中
                         }}
                         railStyle={{
-                            backgroundColor: '#333', // 滑块经过的轨道颜色
+                            backgroundColor: '#121314', // 滑块经过的轨道颜色
                             height: 16,
                             top:-3,
                         }}
                         trackStyle={{
-                            backgroundColor: '#555', // 滑块经过的底层轨道颜色
+                            backgroundColor: '#535657', // 滑块经过的底层轨道颜色
                             height: 16,
                             top:-3,
                         }}
@@ -1084,7 +1099,9 @@ useEffect(() => {
                             backgroundColor: '#fff',
                         }}
                         marks={marks}
-                        style={{width: '100%'}}
+                        style={{
+                            width: '100%',
+                        }}
                     />
                     <Typography
                         variant="caption"
@@ -1113,14 +1130,17 @@ useEffect(() => {
             </InfoContainer>
 
             <SequenceContainer>
-                <Typography variant="caption" sx={{color: '#fff', fontSize: '16px'}}>
-                    {t('inputSerialNumber')}
+                <Typography variant="caption" sx={{color: '#fff', fontSize: '18px'}}>
+                    {t('sequencePlaceholder')}
+                </Typography>
+                <Typography variant="caption" sx={{color: '#a0a5a7', fontSize: '14px'}}>
+                    {t('onlySupports')}
                 </Typography>
                 <Box sx={{
                     display: 'flex',
                     gap: '8px',
                     alignItems: 'center',
-                    backgroundColor: 'gray',
+                    backgroundColor: 'rgba(160, 165, 167, 1)',
                     borderRadius: '10px',
                     padding: '2px 8px'
                 }}>
@@ -1135,8 +1155,8 @@ useEffect(() => {
                         size="small"
                         placeholder={t('inputSerialNumber')}
                         sx={{
-                            backgroundColor: 'rgba(45, 45, 45, 0)',
-                            input: { color: '#fff' },
+                            backgroundColor: 'rgba(160, 165, 167, 0)',
+                            input: { color: '#36393c' },
                             '& .MuiOutlinedInput-root': {
                                 '& fieldset': { borderColor: 'transparent' },
                                 '&:hover fieldset': { borderColor: 'transparent' },
@@ -1155,7 +1175,7 @@ useEffect(() => {
                         minHeight: '140px',
                         maxHeight: '240px',
                         overflowY: 'auto',
-                        backgroundColor: '#121212',
+                        backgroundColor: '#121314',
                         borderRadius: '20px',
                         padding: '4px 10px',
                         '&::-webkit-scrollbar': {

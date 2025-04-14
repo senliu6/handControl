@@ -2,9 +2,9 @@ import React, {useEffect, useRef, useState} from 'react';
 import * as echarts from 'echarts';
 
 const forceOptions = [
-    {label: 'Fx', color: '#ff4d4f'},
-    {label: 'Fy', color: '#52c41a'},
-    {label: 'Fz', color: '#1890ff'},
+    {label: 'Fx', color: '#e61736'},
+    {label: 'Fy', color: '#e61736'},
+    {label: 'Fz', color: '#e61736'},
 ];
 
 const ChartPanel = ({forceData}) => {
@@ -239,6 +239,7 @@ const ChartPanel = ({forceData}) => {
                             fontSize: 12,
                             fontFamily: 'Roboto',
                         },
+                        splitLine: {show: false},
 
                     },
                     yAxis: {
@@ -251,7 +252,7 @@ const ChartPanel = ({forceData}) => {
                             fontFamily: 'Roboto',
                             formatter: (value) => `${value}`,
                         },
-                        splitLine: {lineStyle: {color: '#333'}},
+                        splitLine: {lineStyle: {color: '#464b50'}},//分割线
                     },
                     series: [
                         {
@@ -283,20 +284,21 @@ const ChartPanel = ({forceData}) => {
             height: '100%',
             display: 'flex',
             flexDirection: 'column',
-            gap: '10px',
+            gap: '20px',
             padding: '10px',
-            backgroundColor: '#121212'
+            backgroundColor: '#000000',
+            marginLeft:'20px'
         }}>
             {[0, 1, 2].map(index => (
                 <div
                     key={index}
                     style={{
-                        width: 'calc(100% - 60px)',
-                        height: 'calc(33.33% - 60px)',
-                        backgroundColor: '#2d2d2d',
+                        width: 'calc(100% - 50px)',
+                        height: 'calc(33.33% - 48px)',
+                        backgroundColor: '#232528',
                         borderRadius: '18px',
                         overflow: 'hidden',
-                        padding: '20px',
+                        padding: '10px',
                     }}
                     ref={el => handleChartRef(el, index)}
                 />
