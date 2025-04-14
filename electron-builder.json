@@ -22,6 +22,7 @@
       "dist/**/*",
       "main.js"
     ],
+    "asar": false,
     "win": {
       "type": "object",
       "properties": {

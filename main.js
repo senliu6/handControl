@@ -1,40 +1,19 @@
-const { app, BrowserWindow } = require('electron');
 const path = require('path');
+const express = require('express');
 const isDev = process.env.NODE_ENV === 'development';
 
-function createWindow() {
-    const mainWindow = new BrowserWindow({
-        width: 1280,
-        height: 800,
-        show: false,
-        webPreferences: {
-            nodeIntegration: true,
-            contextIsolation: false,
-            webSecurity: !isDev
-        }
-    });
+const app = express();
 
-    mainWindow.once('ready-to-show', () => {
-        mainWindow.show();
+if (isDev) {
+    console.log('Running in development mode');
+} else {
+    app.use(express.static(path.join(__dirname, 'dist')));
+    app.get('*', (req, res) => {
+        res.sendFile(path.join(__dirname, 'dist', 'index.html'), { dotfiles: 'allow' });
     });
-
-    // 根据开发环境或生产环境加载不同的URL
-    if (isDev) {
-        mainWindow.loadURL('http://localhost:3000');
-        mainWindow.webContents.openDevTools();
-    } else {
-        mainWindow.loadFile(path.join(__dirname, 'dist', 'index.html'));
-    }
 }
 
-app.whenReady().then(() => {
-    createWindow();
-
-    app.on('activate', function () {
-        if (BrowserWindow.getAllWindows().length === 0) createWindow();
-    });
-});
-
-app.on('window-all-closed', function () {
-    if (process.platform !== 'darwin') app.quit();
+const port = process.env.PORT || 3000;
+app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
 });

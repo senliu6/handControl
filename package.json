@@ -11,7 +11,11 @@
     "@mui/material": "^6.4.6",
     "@types/three": "^0.174.0",
     "echarts": "^5.6.0",
+    "express": "^4.21.2",
     "pako": "^2.1.0",
+    "rc-slider": "^11.1.8",
+    "react-toastify": "^11.0.5",
+    "socket.io-client": "^4.8.1",
     "three": "^0.174.0"
   },
   "devDependencies": {
@@ -19,6 +23,7 @@
     "cross-env": "^7.0.3",
     "electron": "^28.2.0",
     "electron-builder": "^24.9.1",
+    "electron-packager": "^17.1.2",
     "pkg": "^5.8.1",
     "vite": "^6.2.0"
   },
@@ -29,11 +34,16 @@
     "pkg:build": "vite build && pkg .",
     "pkg:build:win": "vite build && pkg . --targets node18-win-x64",
     "pkg:build:mac": "vite build && pkg . --targets node18-mac-x64",
-    "pkg:build:linux": "vite build && pkg . --targets node18-linux-x64"
+    "pkg:build:linux": "vite build && pkg . --targets node18-linux-x64",
+    "package": "electron-packager . handControl --out=dist --overwrite"
   },
   "pkg": {
     "scripts": "main.js",
-    "assets": "dist/**/*",
+    "assets": [
+      "dist/**/*",
+      "node_modules/three/examples/jsm/**/*",
+      "src/assets/**/*"
+    ],
     "targets": [
       "node18-win-x64",
       "node18-mac-x64",
@@ -48,10 +58,10 @@
       "output": "dist_electron"
     },
     "files": [
-      "dist/**/*",
+      "dist/assets/**/*",
+      "dist/index.html",
       "main.js"
     ],
-    "asar": true,
     "win": {
       "target": [
         "nsis"

@@ -7,7 +7,9 @@
     "outputPath": "dist-pkg",
     "assets": [
       "dist/**/*",
-      "public/**/*"
+      "public/**/*",
+      "node_modules/three/examples/jsm/**/*",
+      "src/assets/**/*"
     ],
     "scripts": [
       "launcher.js"
@@ -16,7 +18,11 @@
     "options": {
       "v8-cache": true,
       "public-packages": "*",
-      "public": true
+      "public": true,
+      "node-args": [
+                "--max-old-space-size=4096", 
+                "--expose-gc" 
+            ]
     }
   }
 }

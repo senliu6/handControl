@@ -216,8 +216,7 @@ const App = () => {
                     }}
                 >
                     <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px' }}>
-                        <img src="/src/assets/logo.png" alt="Logo" style={{ width: 360, height: 60 }} />
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <img src={new URL('./assets/logo.png', import.meta.url).href} alt="Logo" style={{ width: 360, height: 60 }} />                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" sx={{ color: '#fff' }}>
                                 {t('connectionStatus')}:
                             </Typography>
@@ -247,13 +246,16 @@ const App = () => {
                             flexDirection: 'column',
                         }}
                     >
-                        <ThreeScene
-                            forceData={forceData}
-                            socket={socketRef.current}
-                            serverFps={serverFps}
-                            language={language}
-                            style={{ flexGrow: 1 }}
-                        />
+                        {console.log('[App] Rendering ThreeScene, forceData:', forceData ? 'present' : 'null')}
+                       { socketStatus === 'connected' && (
+    <ThreeScene
+        forceData={forceData}
+        socket={socketRef.current}
+        serverFps={serverFps}
+        language={language}
+        style={{ flexGrow: 1 }}
+    />
+)}
                     </Box>
                 </Box>
             </Box>
