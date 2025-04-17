@@ -1,13 +1,13 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 
 const forceOptions = [
-    {label: 'Fx', color: '#e61736'},
-    {label: 'Fy', color: '#e61736'},
-    {label: 'Fz', color: '#e61736'},
+    { label: 'Fx', color: '#e61736' },
+    { label: 'Fy', color: '#e61736' },
+    { label: 'Fz', color: '#e61736' },
 ];
 
-const ChartPanel = ({forceData}) => {
+const ChartPanel = ({ forceData }) => {
     const chartsRef = useRef([]);
     const chartElementsRef = useRef([]);
     const startTimeRef = useRef(null);
@@ -22,39 +22,38 @@ const ChartPanel = ({forceData}) => {
         const option = {
             title: [
                 {
-                    text: 'Force (N)',
+                    text: 'Deformation (mm)',
                     left: 'left',
                     top: 'top',
-                    textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                 },
                 {
                     text: title,
                     right: 'right',
                     top: 'top',
-                    textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                 },
                 {
-                    text: 'Frame', // 添加 "Frame" 文字到右下角
+                    text: 'Time(ms)', // 修改为 "Time(ms)" 与 X 轴一致
                     right: 'right',
                     bottom: 'bottom',
-                    textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                 },
             ],
-            grid: {top: 40, right: 10, bottom: 30, left: 45, containLabel: true}, // 调整 bottom 空间
+            grid: { top: 40, right: 10, bottom: 30, left: 25, containLabel: true },
             xAxis: {
                 type: 'value',
-                // 移除 name 和相关配置
                 min: 0,
-                max: 10000,
-                interval: 2000,
-                axisLine: {lineStyle: {color: '#444'}},
+                max: 500,
+                interval: 100,
+                axisLine: { lineStyle: { color: '#444' } },
                 axisLabel: {
                     color: '#fff',
                     fontSize: 12,
                     fontFamily: 'Roboto',
                     formatter: (value) => `${Math.round(value)}`,
                 },
-                splitLine: {show: false},
+                splitLine: { show: false },
             },
             yAxis: {
                 type: 'value',
@@ -62,13 +61,13 @@ const ChartPanel = ({forceData}) => {
                 min: -6,
                 max: 6,
                 interval: 3,
-                axisLine: {lineStyle: {color: '#444'}},
+                axisLine: { lineStyle: { color: '#444' } },
                 axisLabel: {
                     color: '#fff',
                     fontSize: 12,
                     fontFamily: 'Roboto',
                 },
-                splitLine: {lineStyle: {color: '#333'}},
+                splitLine: { lineStyle: { color: '#333' } },
             },
             series: [
                 {
@@ -76,11 +75,11 @@ const ChartPanel = ({forceData}) => {
                     smooth: true,
                     showSymbol: false,
                     data: [],
-                    lineStyle: {color, width: 1.5},
+                    lineStyle: { color, width: 1.5 },
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            {offset: 0, color: `${color}80`},
-                            {offset: 1, color: `${color}00`},
+                            { offset: 0, color: `${color}80` },
+                            { offset: 1, color: `${color}00` },
                         ]),
                     },
                 },
@@ -104,7 +103,7 @@ const ChartPanel = ({forceData}) => {
             return;
         }
 
-        const titles = ['Fx = 0.00N', 'Fy = 0.00N', 'Fz = 0.00N'];
+        const titles = ['Fx = 0.00mm', 'Fy = 0.00mm', 'Fz = 0.00mm'];
         const chart = initChart(element, titles[index], forceOptions[index].color);
         if (chart) {
             chartsRef.current[index] = chart;
@@ -133,7 +132,7 @@ const ChartPanel = ({forceData}) => {
         }
 
         const updateChart = () => {
-            const {normal, shear, timestamp} = forceData;
+            const { normal, shear, timestamp } = forceData;
             const height = normal.length;
             const width = normal[0].length;
 
@@ -185,7 +184,7 @@ const ChartPanel = ({forceData}) => {
             chartsRef.current.forEach((chart, index) => {
                 if (!chart || chart.isDisposed()) {
                     if (chartElementsRef.current[index]) {
-                        const titles = ['Fx = 0.00N', 'Fy = 0.00N', 'Fz = 0.00N'];
+                        const titles = ['Fx = 0.00mm', 'Fy = 0.00mm', 'Fz = 0.00mm'];
                         const newChart = initChart(chartElementsRef.current[index], titles[index], forceOptions[index].color);
                         if (newChart) {
                             chartsRef.current[index] = newChart;
@@ -199,7 +198,7 @@ const ChartPanel = ({forceData}) => {
                 }
 
                 const currentOption = chart.getOption() || {};
-                const series = currentOption.series && currentOption.series[0] ? currentOption.series[0] : {data: []};
+                const series = currentOption.series && currentOption.series[0] ? currentOption.series[0] : { data: [] };
                 const seriesData = series.data || [];
 
                 const newValue = index === 0 ? avgShearX : index === 1 ? avgShearY : avgNormal;
@@ -212,22 +211,22 @@ const ChartPanel = ({forceData}) => {
                 chart.setOption({
                     title: [
                         {
-                            text: 'Force (N)',
+                            text: 'Deformation (mm)',
                             left: 'left',
                             top: 'top',
-                            textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                         },
                         {
-                            text: `${forceOptions[index].label} = ${newValue.toFixed(2)}N`,
+                            text: `${forceOptions[index].label} = ${newValue.toFixed(2)}mm`,
                             right: 'right',
                             top: 'top',
-                            textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                         },
                         {
-                            text: 'Time(ms)', // 确保 "Frame" 文字在右下角
+                            text: 'Time(ms)',
                             right: 'right',
                             bottom: 'bottom',
-                            textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
+                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                         },
                     ],
                     xAxis: {
@@ -235,12 +234,12 @@ const ChartPanel = ({forceData}) => {
                         max: xMax,
                         interval: (xMax - xMin) / 5,
                         axisLabel: {
-                            formatter: (value) => `${Math.round(value)}`, color: '#fff',
+                            formatter: (value) => `${Math.round(value)}`,
+                            color: '#fff',
                             fontSize: 12,
                             fontFamily: 'Roboto',
                         },
-                        splitLine: {show: false},
-
+                        splitLine: { show: false },
                     },
                     yAxis: {
                         min: -4,
@@ -252,7 +251,7 @@ const ChartPanel = ({forceData}) => {
                             fontFamily: 'Roboto',
                             formatter: (value) => `${value}`,
                         },
-                        splitLine: {lineStyle: {color: '#464b50'}},//分割线
+                        splitLine: { lineStyle: { color: '#464b50' } },
                     },
                     series: [
                         {
@@ -260,11 +259,11 @@ const ChartPanel = ({forceData}) => {
                             smooth: true,
                             showSymbol: false,
                             data: seriesData,
-                            lineStyle: {color: forceOptions[index].color, width: 1.5},
+                            lineStyle: { color: forceOptions[index].color, width: 1.5 },
                             areaStyle: {
                                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                    {offset: 0, color: `${forceOptions[index].color}80`},
-                                    {offset: 1, color: `${forceOptions[index].color}00`},
+                                    { offset: 0, color: `${forceOptions[index].color}80` },
+                                    { offset: 1, color: `${forceOptions[index].color}00` },
                                 ]),
                             },
                         },
@@ -274,8 +273,8 @@ const ChartPanel = ({forceData}) => {
             });
         };
 
-        const timer = setTimeout(updateChart, 30);
-        return () => clearTimeout(timer);
+        // 直接调用 updateChart，移除 setTimeout
+        updateChart();
     }, [forceData, chartsInitialized]);
 
     return (
@@ -287,7 +286,7 @@ const ChartPanel = ({forceData}) => {
             gap: '20px',
             padding: '10px',
             backgroundColor: '#000000',
-            marginLeft:'20px'
+            marginLeft: '20px'
         }}>
             {[0, 1, 2].map(index => (
                 <div

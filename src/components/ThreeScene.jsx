@@ -2,14 +2,13 @@ import {useEffect, useRef, useState} from 'react';
 import {
     Box,
     IconButton,
-    ButtonGroup,
-    Button,
     Typography,
     TextField,
+    Button,
     List,
     ListItem,
     ListItemText,
-    ListItemSecondaryAction
+    ListItemSecondaryAction,
 } from '@mui/material';
 import {useLanguage} from '../contexts/LanguageContext';
 import {styled} from '@mui/material/styles';
@@ -19,11 +18,11 @@ import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AddIcon from '@mui/icons-material/Add';
 import * as THREE from 'three';
-import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls';
+import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {toast} from 'react-toastify';
 import {Tooltip} from '@mui/material';
 
-//重置按钮
+// 样式定义保持不变
 const ResetButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
     top: '180px',
@@ -35,7 +34,6 @@ const ResetButton = styled(IconButton)(({theme}) => ({
     flexDirection: 'column',
     alignItems: 'center',
 }));
-//校准按钮
 const CalibrateButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
     top: '10px',
@@ -48,7 +46,6 @@ const CalibrateButton = styled(IconButton)(({theme}) => ({
         transform: 'scale(0.95)',
     },
 }));
-//变形场和分布力
 const ViewButton = styled(Button)(({theme}) => ({
     minWidth: '40px',
     padding: '8px 28px',
@@ -69,8 +66,6 @@ const ViewControls = styled(Box)(({theme}) => ({
     display: 'flex',
     gap: '8px',
 }));
-
-//滑动条
 const SliderContainer = styled(Box)(({theme}) => ({
     position: 'absolute',
     bottom: '50px',
@@ -85,8 +80,6 @@ const SliderContainer = styled(Box)(({theme}) => ({
     alignItems: 'center',
     gap: '8px',
 }));
-
-//两边的数字提示
 const CircleValue = styled(Box, {
     shouldForwardProp: (prop) => prop !== 'isRight',
 })(({theme, isRight}) => ({
@@ -101,10 +94,8 @@ const CircleValue = styled(Box, {
     fontSize: '12px',
     flexShrink: 0,
 }));
-
 const CustomHandle = (props) => {
     const {value, dragging, index, ...restProps} = props;
-    console.log('CustomHandle 渲染:', { value, dragging, index }); // 调试日志
     return (
         <Box
             {...restProps}
@@ -129,19 +120,15 @@ const CustomHandle = (props) => {
         />
     );
 };
-
-//帧率
 const InfoContainer = styled(Box)(({theme}) => ({
     position: 'absolute',
     bottom: '20px',
     left: '20px',
     color: '#fff',
 }));
-
-//输入序列号
 const SequenceContainer = styled(Box)(({theme}) => ({
     position: 'absolute',
-    top: '400px',
+    top: '250px',
     right: '20px',
     width: '200px',
     backgroundColor: 'transparent',
@@ -150,7 +137,6 @@ const SequenceContainer = styled(Box)(({theme}) => ({
     flexDirection: 'column',
     gap: '8px',
 }));
-//添加序列号按钮
 const AddButton = styled(IconButton)(({theme}) => ({
     backgroundColor: '#e61937',
     color: '#fff',
@@ -158,9 +144,8 @@ const AddButton = styled(IconButton)(({theme}) => ({
     '&:hover': {backgroundColor: '#cc0000'},
 }));
 
-
-const ThreeScene = ({forceData, socket, serverFps}) => {
-    const { t} = useLanguage();
+const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, onFetchDevices}) => {
+    const {t} = useLanguage();
     const containerRef = useRef(null);
     const sceneRef = useRef(null);
     const cameraRef = useRef(null);
@@ -173,22 +158,15 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
     const axesRendererRef = useRef(null);
     const axesCameraRef = useRef(null);
     const axesSceneRef = useRef(null);
-    const [displayMode, setDisplayMode] = useState('deformation');
+    const [displayMode] = useState('deformation');
     const [sliderValue, setSliderValue] = useState(5);
-    // 修改 marks 为 11 个刻度
-    const marks = Array.from({ length: 12 }, (_, i) => ({
-        value: i,
-        label: i, // 每个刻度显示数字 0 到 10
-    })).reduce((acc, mark) => {
-        if ( mark.label === 0 || mark.label === 11 ){
-
-        }else {
+    const marks = Array.from({length: 12}, (_, i) => ({value: i, label: i})).reduce((acc, mark) => {
+        if (mark.label === 0 || mark.label === 11) {
+        } else {
             acc[mark.value] = mark.label;
         }
-
         return acc;
     }, {});
-    const isInitialRender = useRef(true);
     const lastLogTime = useRef(0);
     const lastNormalMax = useRef(null);
     const lastUpdateTime = useRef(0);
@@ -197,22 +175,24 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
     const [sequenceNumber, setSequenceNumber] = useState('');
     const [sequenceList, setSequenceList] = useState([]);
     const [frameRate, setFrameRate] = useState(0);
-    const [renderKey, setRenderKey] = useState(0); // 新增状态用于强制渲染
-    const [isTooltipOpen, setIsTooltipOpen] = useState(false); // 添加状态控制 Tooltip 显示
+    const [isTooltipOpen, setIsTooltipOpen] = useState(false);
+    const selectedArrowsRef = useRef([]);
+    const lastSliderValue = useRef(sliderValue);
+    const lastNormalMaxValue = useRef(null);
+    const [selectedSequence, setSelectedSequence] = useState('0'); // 新增状态，默认为 '0'
 
-    // console.log('[ThreeScene] Rendering component', {
-    //     forceData: forceData ? 'present' : 'null',
-    //     socketConnected: socket?.connected,
-    //     sequenceNumber,
-    //     sequenceListLength: sequenceList.length,
-    //     displayMode,
-    //     sliderValue
-    // });
+    useEffect(() => {
+        if (connectedDevices && connectedDevices.length > 0) {
+            setSequenceList(connectedDevices.map(id => id.toString()));
+        } else {
+            setSequenceList([]);
+        }
+    }, [connectedDevices]);
 
     const handleCalibrate = () => {
         if (socket && socket.connected) {
             socket.emit('calibrate', {message: t('calibrationTriggered')});
-            toast.info(t('calibrationTriggered')); // 临时提示
+            toast.info(t('calibrationTriggered'));
         } else {
             toast.error(t('socketNotConnected'));
         }
@@ -235,644 +215,574 @@ const ThreeScene = ({forceData, socket, serverFps}) => {
         return {r, g, b};
     };
 
-    const calculateArrowCounts = (sliderValue) => {
-        const n = sliderValue;
-        const horizontalArrows = Math.round(3 * ((n - 1) / 2));
-        const verticalArrows = Math.round(3 * ((n - 1) / 2));
-        return {horizontalArrows, verticalArrows};
-    };
-
     const updateMesh = (data) => {
-        try {
-            const t_start = Date.now();
 
-            if (!data || !data.normal || !Array.isArray(data.normal) || data.normal.length === 0) {
-                console.log('[ThreeScene] forceData invalid or empty');
-                return;
-            }
-
-            const height = data.normal.length;
-            const width = data.normal[0]?.length || 0;
-            const normal = data.normal;
-            const shear = data.shear;
-
-            if (width === 0 || !Array.isArray(normal[0])) {
-                console.log('[ThreeScene] Invalid normal data dimensions');
-                return;
-            }
-
-            if (!shear || !Array.isArray(shear) || shear.length !== height || shear[0].length !== width) {
-                console.warn('[ThreeScene] Shear data invalid or mismatched with normal data');
-                return;
-            }
-
-            const containerWidth = containerRef.current.clientWidth;
-            const targetWidth = containerWidth / 3;
-            const step = 1;
-            const newWidth = Math.floor(width / step);
-            const newHeight = Math.floor(height / step);
-            const scale = targetWidth / (newWidth * step);
-
-            const baseDepthScale = 10.0;
-            const depthScale = baseDepthScale * 5;
-            const hotColors = [
-                { r: 1.0, g: 1.0, b: 1.0 },
-                { r: 240 / 255, g: 121 / 255, b: 138 / 255 },
-                { r: 230 / 255, g: 78 / 255, b: 100 / 255 },
-                { r: 230 / 255, g: 25 / 255, b: 55 / 255 },
-                { r: 230 / 255, g: 0 / 255, b: 18 / 255 },
-            ];
-
-            const arrowColors = [
-                { r: 5 / 255, g: 0 / 255, b: 20 / 255 },
-                { r: 80 / 255, g: 0 / 255, b: 120 / 255 },
-                { r: 200 / 255, g: 50 / 255, b: 50 / 255 },
-                { r: 255 / 255, g: 150 / 255, b: 50 / 255 },
-                { r: 255 / 255, g: 230 / 255, b: 150 / 255 },
-                { r: 5 / 255, g: 0 / 255, b: 20 / 255 },
-            ];
-
-            let normalMin = Infinity, normalMax = -Infinity;
-            for (let y = 0; y < height; y++) {
-                for (let x = 0; x < width; x++) {
-                    const n = normal[y][x];
-                    if (isFinite(n)) {
-                        normalMin = Math.min(normalMin, n);
-                        normalMax = Math.max(normalMax, n);
-                    }
-                }
-            }
-            const normalRange = normalMax - normalMin > 0 ? normalMax - normalMin : 0;
-
-            const currentTime = Date.now();
-            const shouldLog =
-                currentTime - lastLogTime.current > 1000 ||
-                (lastNormalMax.current !== null && Math.abs(normalMax - lastNormalMax.current) > 0.1 * normalRange);
-            if (shouldLog) {
-                lastLogTime.current = currentTime;
-                lastNormalMax.current = normalMax;
-            }
-
-            let geometry = geometryRef.current || new THREE.BufferGeometry();
-            geometryRef.current = geometry;
-
-            const vertices = new Float32Array(newHeight * newWidth * 3);
-            const colors = new Float32Array(newHeight * newWidth * 3);
-            const indices = [];
-
-            const maxNormalValue = 0.5;
-            const normalMaxFactor = Math.min(normalMax / maxNormalValue, 1.0);
-
-            let minZ = Infinity, maxZ = -Infinity;
-            for (let y = 0; y < newHeight; y++) {
-                for (let x = 0; x < newWidth; x++) {
-                    const origY = y * step;
-                    const origX = x * step;
-                    const n = isFinite(normal[origY][origX]) ? normal[origY][origX] : 0;
-                    let z;
-
-                    if (normalRange === 0) {
-                        z = 0;
-                    } else {
-                        const minThreshold = 0.05;
-                        const dynamicThreshold = normalMax * 0.3;
-                        const threshold = Math.max(minThreshold, dynamicThreshold);
-
-                        const absoluteThreshold = 0.1;
-                        if (n <= threshold || n < absoluteThreshold) {
-                            z = 0;
-                        } else {
-                            const adjustedNormal = (n - threshold) / (normalMax - threshold);
-                            z = -adjustedNormal * depthScale * normalMaxFactor;
-                        }
-                    }
-
-                    const idx = (y * newWidth + x) * 3;
-                    vertices[idx] = x * scale * step;
-                    vertices[idx + 1] = y * scale * step;
-                    vertices[idx + 2] = z;
-                    minZ = Math.min(minZ, z);
-                    maxZ = Math.max(maxZ, z);
-                }
-            }
-
-            const zRange = maxZ - minZ > 0 ? maxZ - minZ : 0;
-            const hasDeformation = zRange > 0.01;
-
-            for (let y = 0; y < newHeight; y++) {
-                for (let x = 0; x < newWidth; x++) {
-                    const idx = (y * newWidth + x) * 3;
-                    const z = vertices[idx + 2];
-                    const normalizedZ = zRange > 0 ? (maxZ - z) / zRange : 0;
-                    const color = interpolateColor(normalizedZ, hotColors);
-                    colors[idx] = color.r;
-                    colors[idx + 1] = color.g;
-                    colors[idx + 2] = color.b;
-                }
-            }
-
-            for (let y = 0; y < newHeight - 1; y++) {
-                for (let x = 0; x < newWidth - 1; x++) {
-                    const topLeft = y * newWidth + x;
-                    const topRight = topLeft + 1;
-                    const bottomLeft = (y + 1) * newWidth + x;
-                    const bottomRight = bottomLeft + 1;
-                    indices.push(topLeft, bottomLeft, topRight, topRight, bottomLeft, bottomRight);
-                }
-            }
-
-            if (geometry.attributes.position) {
-                geometry.attributes.position.array.set(vertices);
-                geometry.attributes.color.array.set(colors);
-            } else {
-                geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-                geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
-            }
-            geometry.setIndex(indices);
-            geometry.attributes.position.needsUpdate = true;
-            geometry.attributes.color.needsUpdate = true;
-            geometry.computeVertexNormals();
-
-            if (!meshRef.current) {
-                const material = new THREE.MeshBasicMaterial({
-                    vertexColors: true,
-                    side: THREE.DoubleSide,
-                });
-                const mesh = new THREE.Mesh(geometry, material);
-                meshRef.current = mesh;
-                sceneRef.current.add(mesh);
-
-                geometry.computeBoundingBox();
-                const box = geometry.boundingBox;
-                const center = box.getCenter(new THREE.Vector3());
-                mesh.position.set(-center.x, -center.y, -center.z);
-            }
-
-            const baseArrowLength = 2.0;
-            const maxArrowLength = 10.0;
-            const baseArrowHeadLength = 0.5;
-            const baseArrowHeadWidth = 0.5;
-
-            const minArrowLength = 4.0;
-            const maxArrowLengthScale = 1.0;
-            const minArrowHeadLength = 8;
-            const maxArrowHeadLength = 0.5;
-            const minArrowHeadWidth = 3;
-            const maxArrowHeadWidth = 0.5;
-
-            const depressionPointsSet = new Set();
-            if (hasDeformation) {
-                const normalThreshold = normalMax * 0.3;
-                for (let y = 0; y < newHeight; y++) {
-                    for (let x = 0; x < newWidth; x++) {
-                        const origY = y * step;
-                        const origX = x * step;
-                        const n = isFinite(normal[origY][origX]) ? normal[origY][origX] : 0;
-                        if (n > normalThreshold) {
-                            depressionPointsSet.add(`${origX},${origY}`);
-                        }
-                    }
-                }
-            }
-
-            const arrows = data.arrows;
-            if (!arrows || !Array.isArray(arrows)) {
-                console.warn('[ThreeScene] Invalid or empty arrow data:', arrows);
-                return;
-            }
-
-            const totalArrows = arrows.length;
-            const sliderMax = 10;
-            const sliderMid = 5;
-            let targetArrowCount;
-
-            let adjustedSliderValue = sliderValue;
-            if (sliderValue === 7) {
-                adjustedSliderValue = 8;
-            } else if (sliderValue === 14) {
-                adjustedSliderValue = 15;
-            } else if (sliderValue === 21) {
-                adjustedSliderValue = 20;
-            } else if (sliderValue === 24) {
-                adjustedSliderValue = 25;
-            }
-
-            if (adjustedSliderValue === 0) {
-                targetArrowCount = 0;
-            } else if (adjustedSliderValue === sliderMax) {
-                targetArrowCount = totalArrows;
-            } else if (adjustedSliderValue <= sliderMid) {
-                targetArrowCount = Math.round((adjustedSliderValue / sliderMid) * (totalArrows / 2));
-            } else {
-                targetArrowCount = Math.round(
-                    (totalArrows / 2) + ((adjustedSliderValue - sliderMid) / (sliderMax - sliderMid)) * (totalArrows / 2)
-                );
-            }
-
-            while (arrowPoolRef.current.length < arrows.length) {
-                const arrow = new THREE.ArrowHelper(
-                    new THREE.Vector3(0, 0, 1),
-                    new THREE.Vector3(0, 0, 0),
-                    1,
-                    0xffffff,
-                    baseArrowHeadLength,
-                    baseArrowHeadWidth
-                );
-                arrow.line.material.depthTest = false;
-                arrow.cone.material.depthTest = false;
-                arrow.visible = false;
-                arrowsGroupRef.current.add(arrow);
-                arrowPoolRef.current.push(arrow);
-            }
-
-            const styleFactor = Math.pow(sliderValue / 120, 2);
-            const arrowLengthScale = minArrowLength + (maxArrowLengthScale - minArrowLength) * styleFactor;
-            const arrowHeadLength = minArrowHeadLength + (maxArrowHeadLength - minArrowHeadLength) * styleFactor;
-            const arrowHeadWidth = minArrowHeadWidth + (maxArrowHeadWidth - minArrowHeadWidth) * styleFactor;
-
-            let minArrowX = Infinity, maxArrowX = -Infinity;
-            let minArrowY = Infinity, maxArrowY = -Infinity;
-            for (let i = 0; i < arrows.length; i++) {
-                const arrowData = arrows[i];
-                const start = arrowData.start;
-                const end = arrowData.end;
-                minArrowX = Math.min(minArrowX, start[0], end[0]);
-                maxArrowX = Math.max(maxArrowX, start[0], end[0]);
-                minArrowY = Math.min(minArrowY, start[1], end[1]);
-                maxArrowY = Math.max(maxArrowY, start[1], end[1]);
-            }
-
-            const arrowRangeX = maxArrowX - minArrowX;
-            const arrowRangeY = maxArrowY - minArrowY;
-            const gridRangeX = width - 1;
-            const gridRangeY = height - 1;
-            const scaleFactorX = arrowRangeX > 0 ? gridRangeX / arrowRangeX : 1;
-            const scaleFactorY = arrowRangeY > 0 ? gridRangeY / arrowRangeY : 1;
-
-            const selectedIndices = [];
-            if (targetArrowCount > 0) {
-                const stepSize = totalArrows / Math.max(1, targetArrowCount);
-                for (let i = 0; i < targetArrowCount; i++) {
-                    const index = Math.floor(i * stepSize);
-                    if (index < totalArrows) {
-                        selectedIndices.push(index);
-                    }
-                }
-            }
-
-            let arrowCount = 0;
-            for (let i = 0; i < arrowPoolRef.current.length; i++) {
-                const arrow = arrowPoolRef.current[i];
-                if (i < arrows.length && selectedIndices.includes(i)) {
-                    const arrowData = arrows[i];
-                    const start = arrowData.start;
-                    const end = arrowData.end;
-
-                    const origX = (start[0] - minArrowX) * scaleFactorX;
-                    const origY = (start[1] - minArrowY) * scaleFactorY;
-
-                    const tolerance = 1;
-                    let isInDepression = false;
-                    for (let dx = -tolerance; dx <= tolerance; dx++) {
-                        for (let dy = -tolerance; dy <= tolerance; dy++) {
-                            const checkX = Math.round(origX) + dx;
-                            const checkY = Math.round(origY) + dy;
-                            const key = `${checkX},${checkY}`;
-                            if (depressionPointsSet.has(key)) {
-                                isInDepression = true;
-                                break;
-                            }
-                        }
-                        if (isInDepression) break;
-                    }
-
-                    if (!isInDepression) {
-                        arrow.visible = false;
-                        continue;
-                    }
-
-                    let posX = origX * scale * step;
-                    let posY = origY * scale * step;
-
-                    const mesh = meshRef.current;
-                    const adjustedPosX = posX + mesh.position.x;
-                    const adjustedPosY = posY + mesh.position.y;
-
-                    const mappedX = Math.floor(origX / step);
-                    const mappedY = Math.floor(origY / step);
-                    let posZ = 0;
-                    if (mappedX >= 0 && mappedX < newWidth && mappedY >= 0 && mappedY < newHeight) {
-                        const idx = (mappedY * newWidth + mappedX) * 3;
-                        posZ = vertices[idx + 2];
-                    }
-                    const adjustedPosZ = posZ + mesh.position.z;
-
-                    arrow.position.set(adjustedPosX, adjustedPosY, adjustedPosZ);
-
-                    const shearX = (end[0] - minArrowX) * scaleFactorX - origX;
-                    const shearY = (end[1] - minArrowY) * scaleFactorY - origY;
-                    let direction = new THREE.Vector3(shearX, shearY, 0);
-                    if (direction.lengthSq() === 0) {
-                        direction.set(1, 0, 0);
-                    } else {
-                        direction.normalize();
-                    }
-
-                    const depth = zRange > 0 ? (maxZ - posZ) / zRange : 0;
-                    const baseLength = baseArrowLength + (maxArrowLength - baseArrowLength) * depth * 0.5;
-                    const arrowLength = baseLength * arrowLengthScale;
-                    const adjustedArrowHeadLength = arrowHeadLength * (1 + depth * 0.5);
-                    const adjustedArrowHeadWidth = adjustedArrowHeadLength * 0.5;
-
-                    const color = interpolateColor(depth, arrowColors);
-                    const arrowColor = new THREE.Color(color.r, color.g, color.b);
-
-                    arrow.setDirection(direction);
-                    arrow.setLength(arrowLength, adjustedArrowHeadLength, adjustedArrowHeadWidth);
-                    arrow.setColor(arrowColor);
-                    arrow.visible = true;
-                    arrowCount++;
-                } else {
-                    arrow.visible = false;
-                }
-            }
-
-            // 如果最终绘制的箭头数量等于目标箭头数量，清空所有箭头
-            if (arrowCount === targetArrowCount && arrowCount > 0) {
-                console.log(`最终绘制箭头数量 (${arrowCount}) 等于目标箭头数量 (${targetArrowCount})，清空所有箭头`);
-                for (let i = 0; i < arrowPoolRef.current.length; i++) {
-                    const arrow = arrowPoolRef.current[i];
-                    arrow.visible = false;
-                }
-                arrowCount = 0; // 重置 arrowCount
-            }
-
-            // 移除原有的清空逻辑，避免箭头闪烁
-            // console.log('[ThreeScene] Arrows rendered:', { arrowCount, targetArrowCount });
-
-            const t_end = Date.now();
-            if (shouldLog) {
-                setFrameRate(Math.round(1000 / (t_end - t_start)));
-            }
-
-            // console.log('[ThreeScene] updateMesh completed');
-        } catch (error) {
-            console.error('[ThreeScene] Error in updateMesh:', error);
-        }
-    };
-
-   // 用于防抖 updateMesh
-const updateMeshTimeout = useRef(null);
-
-useEffect(() => {
-    console.log('[ThreeScene] Initializing useEffect');
-    if (!containerRef.current || sceneRef.current) {
-        console.log('[ThreeScene] Skipping initialization', {
-            containerRef: !!containerRef.current,
-            sceneRef: !!sceneRef.current
-        });
-        return;
-    }
-
-    console.log('[ThreeScene] Setting up Three.js scene');
-    const canvas = document.createElement('canvas');
-    const gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
-    console.log('[ThreeScene] WebGL supported:', !!gl);
-    console.log('[ThreeScene] OrbitControls available:', !!OrbitControls);
-    isMounted.current = true;
-
-    const scene = new THREE.Scene();
-    sceneRef.current = scene;
-
-    const camera = new THREE.PerspectiveCamera(75, containerRef.current.clientWidth / containerRef.current.clientHeight, 0.1, 2000);
-    cameraRef.current = camera;
-
-    const renderer = new THREE.WebGLRenderer({ antialias: true });
-    renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
-    renderer.setClearColor(0x232528, 1);//3d组件外部框背景
-    containerRef.current.appendChild(renderer.domElement);
-    rendererRef.current = renderer;
-
-    const controls = new OrbitControls(camera, renderer.domElement);
-    controls.enableDamping = true;
-    controls.dampingFactor = 0.05;
-    controls.minDistance = 2;
-    controls.maxDistance = 1000;
-    controlsRef.current = controls;
-
-    // 计算初始网格尺寸
-    let newWidth = 100;
-    let newHeight = 100;
-    const step = 1;
-    const containerWidth = containerRef.current.clientWidth;
-    const targetWidth = containerWidth / 3;
-    const scale = targetWidth / (newWidth * step);
-
-    // 设置初始相机位置
-    const tempGeometry = new THREE.BufferGeometry();
-    const tempVertices = new Float32Array(newWidth * newHeight * 3);
-    for (let y = 0; y < newHeight; y++) {
-        for (let x = 0; x < newWidth; x++) {
-            const idx = (y * newWidth + x) * 3;
-            tempVertices[idx] = x * scale * step;
-            tempVertices[idx + 1] = y * scale * step;
-            tempVertices[idx + 2] = 0;
-        }
-    }
-    tempGeometry.setAttribute('position', new THREE.Float32BufferAttribute(tempVertices, 3));
-    tempGeometry.computeBoundingBox();
-    const box = tempGeometry.boundingBox;
-    const size = box.getSize(new THREE.Vector3());
-    const maxDim = Math.max(size.x, size.y, size.z);
-    const fov = camera.fov * (Math.PI / 180);
-    const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
-
-    camera.position.set(0, 0, -cameraZ);
-    camera.lookAt(0, 0, 0);
-    controls.target.set(0, 0, 0);
-    controls.update();
-
-    const light1 = new THREE.DirectionalLight(0xffffff, 2.0);
-    light1.position.set(0, 0, 10);
-    scene.add(light1);
-    const light2 = new THREE.DirectionalLight(0xffffff, 1.5);
-    light2.position.set(0, 0, -10);
-    scene.add(light2);
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
-    scene.add(ambientLight);
-
-    const axesScene = new THREE.Scene();
-    axesSceneRef.current = axesScene;
-    const axesCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 30);
-    axesCameraRef.current = axesCamera;
-    axesCamera.position.set(7, 7, 7);
-    axesCamera.lookAt(0, 0, 0);
-
-    const axesRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
-    axesRenderer.setSize(120, 120);
-    axesRenderer.setClearColor(0x000000, 0);
-    axesRenderer.domElement.style.position = 'absolute';
-    axesRenderer.domElement.style.top = '20px';
-    axesRenderer.domElement.style.right = '20px';
-    axesRendererRef.current = axesRenderer;
-
-    const axesContainer = document.createElement('div');
-    axesContainer.style.position = 'absolute';
-    axesContainer.style.top = '20px';
-    axesContainer.style.right = '20px';
-    axesContainer.style.width = '180px';
-    axesContainer.style.height = '180px';
-    axesContainer.style.backgroundColor = 'transparent';
-    axesContainer.style.borderRadius = '50%';
-    axesContainer.style.overflow = 'hidden';
-    axesContainer.appendChild(axesRenderer.domElement);
-    containerRef.current.appendChild(axesContainer);
-
-    const radius = 2;
-    const segments = 32;
-    const sphereRadius = 0.5;
-
-    const createAxisWithLabel = (direction, axisColor, label, sphereColor) => {
-        const group = new THREE.Group();
-        const axis = new THREE.Line(
-            new THREE.BufferGeometry().setFromPoints([
-                new THREE.Vector3(0, 0, 0),
-                direction.clone().multiplyScalar(radius),
-            ]),
-            new THREE.LineBasicMaterial({ color: axisColor })
-        );
-        group.add(axis);
-
-        const sphereGeometry = new THREE.SphereGeometry(sphereRadius, segments, segments);
-        const sphereMaterial = new THREE.MeshBasicMaterial({ color: sphereColor });
-        const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
-        sphere.position.copy(direction.clone().multiplyScalar(radius));
-        group.add(sphere);
-
-        const canvas = document.createElement('canvas');
-        canvas.width = 64;
-        canvas.height = 64;
-        const context = canvas.getContext('2d');
-        context.fillStyle = '#ffffff';
-        context.font = 'bold 40px Arial';
-        context.textAlign = 'center';
-        context.textBaseline = 'middle';
-        context.fillText(label, 32, 32);
-
-        const texture = new THREE.CanvasTexture(canvas);
-        const labelMaterial = new THREE.SpriteMaterial({ map: texture, sizeAttenuation: false, depthTest: false });
-        const sprite = new THREE.Sprite(labelMaterial);
-        sprite.scale.set(0.15, 0.15, 1);
-        sprite.position.copy(direction.clone().multiplyScalar(radius));
-        sprite.onBeforeRender = function (renderer, scene, camera) {
-            this.lookAt(camera.position);
-            this.updateMatrix();
-        };
-        group.add(sprite);
-
-        return group;
-    };
-
-    const xAxis = createAxisWithLabel(new THREE.Vector3(1, 0, 0), 0xffff00, 'X', 0x808080);
-    const yAxis = createAxisWithLabel(new THREE.Vector3(0, 1, 0), 0xffff00, 'Y', 0x808080);
-    const zAxis = createAxisWithLabel(new THREE.Vector3(0, 0, 1), 0xff0000, 'Z', 0xff0000);
-
-    axesScene.add(xAxis);
-    axesScene.add(yAxis);
-    axesScene.add(zAxis);
-
-    arrowsGroupRef.current = new THREE.Group();
-    sceneRef.current.add(arrowsGroupRef.current);
-    console.log('[ThreeScene] Three.js scene setup complete, renderer:', !!rendererRef.current);
-
-    const animate = () => {
-        if (!isMounted.current || !rendererRef.current || !axesRendererRef.current) {
-            console.log('[ThreeScene] Stopping animation loop', {
-                isMounted: isMounted.current,
-                rendererExists: !!rendererRef.current,
-                axesRendererExists: !!axesRendererRef.current
-            });
+        if (!data || !data.normal || !Array.isArray(data.normal) || data.normal.length === 0) {
             return;
         }
-        animationFrameId.current = requestAnimationFrame(animate);
-        controlsRef.current.update();
-        axesCameraRef.current.position.copy(cameraRef.current.position).normalize().multiplyScalar(7);
-        axesCameraRef.current.lookAt(0, 0, 0);
-        axesRendererRef.current.render(axesSceneRef.current, axesCameraRef.current);
-        rendererRef.current.render(sceneRef.current, cameraRef.current);
+
+        const height = data.normal.length;
+        const width = data.normal[0]?.length || 0;
+        const normal = data.normal;
+        const shear = data.shear;
+
+        if (width === 0 || !Array.isArray(normal[0])) return;
+
+        if (!shear || !Array.isArray(shear) || shear.length !== height || shear[0].length !== width) {
+            return;
+        }
+
+        const containerWidth = containerRef.current.clientWidth;
+        const targetWidth = containerWidth / 3;
+        const step = 1;
+        const newWidth = Math.floor(width / step);
+        const newHeight = Math.floor(height / step);
+        const scale = targetWidth / (newWidth * step);
+
+        const baseDepthScale = 10.0;
+        const depthScale = baseDepthScale * 5;
+        const hotColors = [
+            {r: 113 / 255, g: 114 / 255, b: 114 / 255},
+            {r: 219 / 255, g: 117 / 255, b: 121 / 255},
+            {r: 229 / 255, g: 50 / 255, b: 50 / 255},
+        ];
+
+        const arrowColors = [
+            {r: 66 / 255, g: 198 / 255, b: 175 / 255},
+            {r: 49 / 255, g: 133 / 255, b: 255 / 255},
+            {r: 126 / 255, g: 44 / 255, b: 255 / 255},
+        ];
+        let normalMin = Infinity, normalMax = -Infinity;
+        for (let y = 0; y < height; y++) {
+            for (let x = 0; x < width; x++) {
+                const n = normal[y][x];
+                if (isFinite(n)) {
+                    normalMin = Math.min(normalMin, n);
+                    normalMax = Math.max(normalMax, n);
+                }
+            }
+        }
+        const normalRange = normalMax - normalMin > 0 ? normalMax - normalMin : 0;
+
+        let geometry = geometryRef.current || new THREE.BufferGeometry();
+        geometryRef.current = geometry;
+
+        const vertices = new Float32Array(newHeight * newWidth * 3);
+        const colors = new Float32Array(newHeight * newWidth * 3);
+        const indices = [];
+
+        const maxNormalValue = 0.5;
+        const normalMaxFactor = Math.min(normalMax / maxNormalValue, 1.0);
+
+        let minZ = Infinity, maxZ = -Infinity;
+        for (let y = 0; y < newHeight; y++) {
+            for (let x = 0; x < newWidth; x++) {
+                const origY = y * step;
+                const origX = x * step;
+                const n = isFinite(normal[origY][origX]) ? normal[origY][origX] : 0;
+                let z;
+
+                if (normalRange === 0) {
+                    z = 0;
+                } else {
+                    const minThreshold = 0.05;
+                    const dynamicThreshold = normalMax * 0.3;
+                    const threshold = Math.max(minThreshold, dynamicThreshold);
+
+                    const absoluteThreshold = 0.1;
+                    if (n <= threshold || n < absoluteThreshold) {
+                        z = 0;
+                    } else {
+                        const adjustedNormal = (n - threshold) / (normalMax - threshold);
+                        z = -adjustedNormal * depthScale * normalMaxFactor;
+                    }
+                }
+
+                const idx = (y * newWidth + x) * 3;
+                vertices[idx] = x * scale * step;
+                vertices[idx + 1] = y * scale * step;
+                vertices[idx + 2] = z;
+                minZ = Math.min(minZ, z);
+                maxZ = Math.max(maxZ, z);
+            }
+        }
+
+        const zRange = maxZ - minZ > 0 ? maxZ - minZ : 0;
+        const hasDeformation = zRange > 0.01;
+
+        for (let y = 0; y < newHeight; y++) {
+            for (let x = 0; x < newWidth; x++) {
+                const idx = (y * newWidth + x) * 3;
+                const z = vertices[idx + 2];
+                const normalizedZ = zRange > 0 ? (maxZ - z) / zRange : 0;
+                const color = interpolateColor(normalizedZ, hotColors);
+                colors[idx] = color.r;
+                colors[idx + 1] = color.g;
+                colors[idx + 2] = color.b;
+            }
+        }
+
+        for (let y = 0; y < newHeight - 1; y++) {
+            for (let x = 0; x < newWidth - 1; x++) {
+                const topLeft = y * newWidth + x;
+                const topRight = topLeft + 1;
+                const bottomLeft = (y + 1) * newWidth + x;
+                const bottomRight = bottomLeft + 1;
+                indices.push(topLeft, bottomLeft, topRight, topRight, bottomLeft, bottomRight);
+            }
+        }
+
+        if (geometry.attributes.position) {
+            geometry.attributes.position.array.set(vertices);
+            geometry.attributes.color.array.set(colors);
+        } else {
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+        }
+        geometry.setIndex(indices);
+        geometry.attributes.position.needsUpdate = true;
+        geometry.attributes.color.needsUpdate = true;
+        geometry.computeVertexNormals();
+
+        if (!meshRef.current) {
+            const material = new THREE.MeshBasicMaterial({
+                vertexColors: true,
+                side: THREE.DoubleSide,
+            });
+            const mesh = new THREE.Mesh(geometry, material);
+            meshRef.current = mesh;
+            sceneRef.current.add(mesh);
+
+            geometry.computeBoundingBox();
+            const box = geometry.boundingBox;
+            const center = box.getCenter(new THREE.Vector3());
+            mesh.position.set(-center.x, -center.y, -center.z);
+        }
+
+        const baseArrowLength = 2.0;
+        const maxArrowLength = 10.0;
+        const baseArrowHeadLength = 0.5;
+        const baseArrowHeadWidth = 0.5;
+
+        const minArrowLength = 4.0;
+        const maxArrowLengthScale = 1.0;
+        const minArrowHeadLength = 8;
+        const maxArrowHeadLength = 0.5;
+        const minArrowHeadWidth = 3;
+        const maxArrowHeadWidth = 0.5;
+
+        const arrows = data.arrows;
+        if (!arrows || !Array.isArray(arrows)) {
+            return;
+        }
+
+        let arrowMinX = Infinity, arrowMaxX = -Infinity;
+        let arrowMinY = Infinity, arrowMaxY = -Infinity;
+        arrows.forEach(arrow => {
+            const start = arrow.start;
+            arrowMinX = Math.min(arrowMinX, start[0]);
+            arrowMaxX = Math.max(arrowMaxX, start[0]);
+            arrowMinY = Math.min(arrowMinY, start[1]);
+            arrowMaxY = Math.max(arrowMaxY, start[1]);
+        });
+
+        const arrowRangeX = arrowMaxX - arrowMinX > 0 ? arrowMaxX - arrowMinX : 1;
+        const arrowRangeY = arrowMaxY - arrowMinY > 0 ? arrowMaxY - arrowMinY : 1;
+
+        const totalArrows = arrows.length;
+        const sliderMax = 11;
+        let targetArrowCount;
+
+        if (sliderValue === 0) {
+            targetArrowCount = 0;
+        } else {
+            const fraction = sliderValue / sliderMax;
+            targetArrowCount = Math.round(totalArrows * fraction);
+            targetArrowCount = Math.max(targetArrowCount, Math.round(totalArrows * 0.1));
+        }
+
+        while (arrowPoolRef.current.length < totalArrows) {
+            const arrow = new THREE.ArrowHelper(
+                new THREE.Vector3(0, 0, 1),
+                new THREE.Vector3(0, 0, 0),
+                1,
+                0xffffff,
+                baseArrowHeadLength,
+                baseArrowHeadWidth
+            );
+            arrow.line.material.depthTest = false;
+            arrow.cone.material.depthTest = false;
+            arrow.visible = false;
+            arrowsGroupRef.current.add(arrow);
+            arrowPoolRef.current.push(arrow);
+        }
+
+        const styleFactor = Math.pow(sliderValue / 120, 2);
+        const arrowLengthScale = minArrowLength + (maxArrowLengthScale - minArrowLength) * styleFactor;
+        const arrowHeadLength = minArrowHeadLength + (maxArrowHeadLength - minArrowHeadLength) * styleFactor;
+        const arrowHeadWidth = minArrowHeadWidth + (maxArrowHeadWidth - minArrowHeadWidth) * styleFactor;
+
+        const normalChanged = lastNormalMaxValue.current === null || Math.abs(normalMax - lastNormalMaxValue.current) > 0.01 * normalMax;
+        const sliderChanged = sliderValue !== lastSliderValue.current;
+
+        let selectedArrows = selectedArrowsRef.current;
+        if (normalChanged || sliderChanged) {
+            selectedArrows = [];
+            if (targetArrowCount > 0) {
+                const gridStepX = Math.max(1, Math.floor(newWidth / Math.sqrt(targetArrowCount)));
+                const gridStepY = Math.max(1, Math.floor(newHeight / Math.sqrt(targetArrowCount)));
+                const numPointsX = Math.floor(newWidth / gridStepX);
+                const numPointsY = Math.floor(newHeight / gridStepY);
+                const totalPoints = numPointsX * numPointsY;
+                const actualTargetCount = Math.min(targetArrowCount, totalPoints);
+
+                const targetPoints = [];
+                for (let y = 0; y < numPointsY; y++) {
+                    for (let x = 0; x < numPointsX; x++) {
+                        const posX = (x + 0.5) * gridStepX;
+                        const posY = (y + 0.5) * gridStepY;
+                        if (posX < newWidth && posY < newHeight) {
+                            targetPoints.push({x: posX, y: posY});
+                        }
+                    }
+                }
+
+                for (let i = targetPoints.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [targetPoints[i], targetPoints[j]] = [targetPoints[j], targetPoints[i]];
+                }
+                const selectedPoints = targetPoints.slice(0, actualTargetCount);
+
+                const usedIndices = new Set();
+                for (const point of selectedPoints) {
+                    const {x, y} = point;
+                    const origX = (x / newWidth) * arrowRangeX + arrowMinX;
+                    const origY = (y / newHeight) * arrowRangeY + arrowMinY;
+
+                    let closestArrow = null;
+                    let minDistance = Infinity;
+                    let closestIndex = -1;
+
+                    for (let i = 0; i < arrows.length; i++) {
+                        if (usedIndices.has(i)) continue;
+                        const arrowData = arrows[i];
+                        const start = arrowData.start;
+                        const dx = start[0] - origX;
+                        const dy = start[1] - origY;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        if (distance < minDistance) {
+                            minDistance = distance;
+                            closestArrow = arrowData;
+                            closestIndex = i;
+                        }
+                    }
+
+                    if (closestArrow) {
+                        selectedArrows.push({index: closestIndex, arrowData: closestArrow});
+                        usedIndices.add(closestIndex);
+                    }
+                }
+            }
+            selectedArrowsRef.current = selectedArrows;
+            lastSliderValue.current = sliderValue;
+            lastNormalMaxValue.current = normalMax;
+        }
+
+        arrowPoolRef.current.forEach(arrow => {
+            arrow.visible = false;
+        });
+
+        let arrowCount = 0;
+        const positionCounts = {};
+        const zThreshold = -0.1;
+        let validArrowCount = 0;
+
+        for (let i = 0; i < selectedArrows.length; i++) {
+            const arrow = arrowPoolRef.current[i];
+            const selectedArrow = selectedArrows[i];
+
+            if (!selectedArrow) continue;
+
+            const arrowData = selectedArrow.arrowData;
+            const start = arrowData.start;
+            const end = arrowData.end;
+
+            const origX = ((start[0] - arrowMinX) / arrowRangeX) * newWidth;
+            const origY = ((start[1] - arrowMinY) / arrowRangeY) * newHeight;
+
+            const mappedX = Math.floor(origX);
+            const mappedY = Math.floor(origY);
+            let posX = mappedX * scale * step;
+            let posY = mappedY * scale * step;
+            let posZ = 0;
+
+            let isInDepression = false;
+            if (mappedX >= 0 && mappedX < newWidth && mappedY >= 0 && mappedY < newHeight) {
+                const idx = (mappedY * newWidth + mappedX) * 3;
+                posZ = vertices[idx + 2];
+                if (posZ < zThreshold) {
+                    isInDepression = true;
+                    validArrowCount++;
+                }
+            }
+
+            if (!isInDepression) {
+                arrow.visible = false;
+                continue;
+            }
+
+            const mesh = meshRef.current;
+            posX += mesh.position.x;
+            posY += mesh.position.y;
+            posZ += mesh.position.z;
+
+            arrow.position.set(posX, posY, posZ);
+
+            const endX = ((end[0] - arrowMinX) / arrowRangeX) * newWidth;
+            const endY = ((end[1] - arrowMinY) / arrowRangeY) * newHeight;
+            const shearX = (endX - origX) / step * scale;
+            const shearY = (endY - origY) / step * scale;
+            let direction = new THREE.Vector3(shearX, shearY, 0);
+            if (direction.lengthSq() === 0) {
+                direction.set(1, 0, 0);
+            } else {
+                direction.normalize();
+            }
+
+            const depth = zRange > 0 ? (maxZ - posZ) / zRange : 0;
+            const baseLength = baseArrowLength + (maxArrowLength - baseArrowLength) * depth * 0.5;
+            const arrowLength = baseLength * arrowLengthScale;
+            const adjustedArrowHeadLength = arrowHeadLength * (1 + depth * 0.5);
+            const adjustedArrowHeadWidth = adjustedArrowHeadLength * 0.5;
+
+            const color = interpolateColor(depth, arrowColors);
+            const arrowColor = new THREE.Color(color.r, color.g, color.b);
+
+            arrow.setDirection(direction);
+            arrow.setLength(arrowLength, adjustedArrowHeadLength, adjustedArrowHeadWidth);
+            arrow.setColor(arrowColor);
+            arrow.visible = true;
+            arrowCount++;
+
+            const posKey = `${Math.floor(mappedX / 10)}-${Math.floor(mappedY / 10)}`;
+            positionCounts[posKey] = (positionCounts[posKey] || 0) + 1;
+        }
+
+        console.log("箭头数量" + arrowCount + "---目标" + targetArrowCount)
+        if (arrowCount > targetArrowCount * 0.96 && arrowCount > 0) {
+            for (let i = 0; i < arrowPoolRef.current.length; i++) {
+                const arrow = arrowPoolRef.current[i];
+                arrow.visible = false;
+            }
+            arrowCount = 0;
+        }
+
+        if (rendererRef.current && sceneRef.current && cameraRef.current) {
+            rendererRef.current.render(sceneRef.current, cameraRef.current);
+        }
     };
-    animate();
 
-    const handleResize = () => {
-        if (!containerRef.current) return;
-        const width = containerRef.current.clientWidth;
-        const height = containerRef.current.clientHeight;
-        if (cameraRef.current) {
-            cameraRef.current.aspect = width / height;
-            cameraRef.current.updateProjectionMatrix();
-        }
-        if (rendererRef.current) {
-            rendererRef.current.setSize(width, height);
-        }
-    };
-    window.addEventListener('resize', handleResize);
+    useEffect(() => {
+        if (!containerRef.current || sceneRef.current) return;
 
-    return () => {
-        console.log('[ThreeScene] Cleaning up useEffect');
-        isMounted.current = false;
-        if (animationFrameId.current) {
-            cancelAnimationFrame(animationFrameId.current);
-            console.log('[ThreeScene] Animation frame cancelled');
-        }
-        window.removeEventListener('resize', handleResize);
-        if (containerRef.current && rendererRef.current?.domElement) {
-            containerRef.current.removeChild(rendererRef.current.domElement);
-            console.log('[ThreeScene] Removed renderer domElement');
-        }
-        if (containerRef.current && axesRendererRef.current?.domElement) {
-            containerRef.current.removeChild(axesRendererRef.current.domElement.parentElement);
-            console.log('[ThreeScene] Removed axesRenderer domElement');
-        }
-        if (rendererRef.current) {
-            rendererRef.current.dispose();
-            console.log('[ThreeScene] Disposed renderer');
-        }
-        if (axesRendererRef.current) {
-            axesRendererRef.current.dispose();
-            console.log('[ThreeScene] Disposed axesRenderer');
-        }
-        sceneRef.current = null;
-        console.log('[ThreeScene] Cleared sceneRef');
-        console.log('[ThreeScene] Cleanup complete');
-    };
-}, []); // 无依赖，仅挂载时运行
+        isMounted.current = true;
 
-useEffect(() => {
-    // console.log('[ThreeScene] Mesh update useEffect', {
-    //     forceData: forceData ? {
-    //         normalRows: forceData.normal?.length,
-    //         arrows: forceData.arrows?.length,
-    //         timestamp: forceData.timestamp
-    //     } : 'null',
-    //     displayMode,
-    //     sliderValue
-    // });
-    if (!forceData || !forceData.normal) {
-        console.log('[ThreeScene] forceData invalid or missing');
-        return;
-    }
+        const scene = new THREE.Scene();
+        sceneRef.current = scene;
 
-    // 防抖更新
-    if (updateMeshTimeout.current) {
-        clearTimeout(updateMeshTimeout.current);
-    }
-    updateMeshTimeout.current = setTimeout(() => {
-        // console.log('[ThreeScene] Updating mesh with valid forceData');
-        updateMesh(forceData);
-    }, 100); // 100ms 防抖
-}, [forceData, displayMode, sliderValue]);
+        const camera = new THREE.PerspectiveCamera(
+            75,
+            containerRef.current.clientWidth / containerRef.current.clientHeight,
+            0.1,
+            2000
+        );
+        cameraRef.current = camera;
 
+        const renderer = new THREE.WebGLRenderer({antialias: true});
+        renderer.setSize(containerRef.current.clientWidth, containerRef.current.clientHeight);
+        renderer.setClearColor(0x232528, 1);
+        containerRef.current.appendChild(renderer.domElement);
+        rendererRef.current = renderer;
 
+        const controls = new OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true;
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 2;
+        controls.maxDistance = 1000;
+        controlsRef.current = controls;
+
+        let newWidth = 100;
+        let newHeight = 100;
+        const step = 1;
+        const containerWidth = containerRef.current.clientWidth;
+        const targetWidth = containerWidth / 3;
+        const scale = targetWidth / (newWidth * step);
+
+        const tempGeometry = new THREE.BufferGeometry();
+        const tempVertices = new Float32Array(newWidth * newHeight * 3);
+        for (let y = 0; y < newHeight; y++) {
+            for (let x = 0; x < newWidth; x++) {
+                const idx = (y * newWidth + x) * 3;
+                tempVertices[idx] = x * scale * step;
+                tempVertices[idx + 1] = y * scale * step;
+                tempVertices[idx + 2] = 0;
+            }
+        }
+        tempGeometry.setAttribute('position', new THREE.Float32BufferAttribute(tempVertices, 3));
+        tempGeometry.computeBoundingBox();
+        const box = tempGeometry.boundingBox;
+        const size = box.getSize(new THREE.Vector3());
+        const maxDim = Math.max(size.x, size.y, size.z);
+        const fov = camera.fov * (Math.PI / 180);
+        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+
+        camera.position.set(0, 0, -cameraZ);
+        camera.lookAt(0, 0, 0);
+        controls.target.set(0, 0, 0);
+        controls.update();
+
+        const light1 = new THREE.DirectionalLight(0xffffff, 2.0);
+        light1.position.set(0, 0, 10);
+        scene.add(light1);
+        const light2 = new THREE.DirectionalLight(0xffffff, 1.5);
+        light2.position.set(0, 0, -10);
+        scene.add(light2);
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.0);
+        scene.add(ambientLight);
+
+        const axesScene = new THREE.Scene();
+        axesSceneRef.current = axesScene;
+        const axesCamera = new THREE.PerspectiveCamera(50, 1, 0.1, 30);
+        axesCameraRef.current = axesCamera;
+        axesCamera.position.set(7, 7, 7);
+        axesCamera.lookAt(0, 0, 0);
+
+        const axesRenderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
+        axesRenderer.setSize(120, 120);
+        axesRenderer.setClearColor(0x000000, 0);
+        axesRenderer.domElement.style.position = 'absolute';
+        axesRenderer.domElement.style.top = '20px';
+        axesRenderer.domElement.style.right = '20px';
+        axesRendererRef.current = axesRenderer;
+
+        const axesContainer = document.createElement('div');
+        axesContainer.style.position = 'absolute';
+        axesContainer.style.top = '20px';
+        axesContainer.style.right = '20px';
+        axesContainer.style.width = '180px';
+        axesContainer.style.height = '180px';
+        axesContainer.style.backgroundColor = 'transparent';
+        axesContainer.style.borderRadius = '50%';
+        axesContainer.style.overflow = 'hidden';
+        axesContainer.appendChild(axesRenderer.domElement);
+        containerRef.current.appendChild(axesContainer);
+
+        const radius = 2;
+        const segments = 32;
+        const sphereRadius = 0.5;
+
+        const createAxisWithLabel = (direction, axisColor, label, sphereColor) => {
+            const group = new THREE.Group();
+            const axis = new THREE.Line(
+                new THREE.BufferGeometry().setFromPoints([
+                    new THREE.Vector3(0, 0, 0),
+                    direction.clone().multiplyScalar(radius),
+                ]),
+                new THREE.LineBasicMaterial({color: axisColor})
+            );
+            group.add(axis);
+
+            const sphereGeometry = new THREE.SphereGeometry(sphereRadius, segments, segments);
+            const sphereMaterial = new THREE.MeshBasicMaterial({color: sphereColor});
+            const sphere = new THREE.Mesh(sphereGeometry, sphereMaterial);
+            sphere.position.copy(direction.clone().multiplyScalar(radius));
+            group.add(sphere);
+
+            const canvas = document.createElement('canvas');
+            canvas.width = 64;
+            canvas.height = 64;
+            const context = canvas.getContext('2d');
+            context.fillStyle = '#ffffff';
+            context.font = 'bold 40px Arial';
+            context.textAlign = 'center';
+            context.textBaseline = 'middle';
+            context.fillText(label, 32, 32);
+
+            const texture = new THREE.CanvasTexture(canvas);
+            const labelMaterial = new THREE.SpriteMaterial({map: texture, sizeAttenuation: false, depthTest: false});
+            const sprite = new THREE.Sprite(labelMaterial);
+            sprite.scale.set(0.15, 0.15, 1);
+            sprite.position.copy(direction.clone().multiplyScalar(radius));
+            sprite.onBeforeRender = function (renderer, scene, camera) {
+                this.lookAt(camera.position);
+                this.updateMatrix();
+            };
+            group.add(sprite);
+
+            return group;
+        };
+
+        const xAxis = createAxisWithLabel(new THREE.Vector3(1, 0, 0), 0xffff00, 'X', 0x808080);
+        const yAxis = createAxisWithLabel(new THREE.Vector3(0, 1, 0), 0xffff00, 'Y', 0x808080);
+        const zAxis = createAxisWithLabel(new THREE.Vector3(0, 0, 1), 0xff0000, 'Z', 0xff0000);
+
+        axesScene.add(xAxis);
+        axesScene.add(yAxis);
+        axesScene.add(zAxis);
+
+        arrowsGroupRef.current = new THREE.Group();
+        sceneRef.current.add(arrowsGroupRef.current);
+
+        const animate = () => {
+            requestAnimationFrame(animate);
+            controls.update();
+            axesCamera.position.copy(camera.position).normalize().multiplyScalar(7);
+            axesCamera.lookAt(0, 0, 0);
+            axesRenderer.render(axesScene, axesCamera);
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        const handleResize = () => {
+            if (!containerRef.current) return;
+            const width = containerRef.current.clientWidth;
+            const height = containerRef.current.clientHeight;
+            if (cameraRef.current) {
+                cameraRef.current.aspect = width / height;
+                cameraRef.current.updateProjectionMatrix();
+            }
+            if (rendererRef.current) {
+                rendererRef.current.setSize(width, height);
+            }
+        };
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            isMounted.current = false;
+            if (animationFrameId.current) {
+                cancelAnimationFrame(animationFrameId.current);
+            }
+            window.removeEventListener('resize', handleResize);
+            if (containerRef.current && rendererRef.current?.domElement) {
+                containerRef.current.removeChild(rendererRef.current.domElement);
+            }
+            if (containerRef.current && axesRendererRef.current?.domElement) {
+                containerRef.current.removeChild(axesRendererRef.current.domElement.parentElement);
+            }
+            if (rendererRef.current) {
+                rendererRef.current.dispose();
+            }
+            if (axesRendererRef.current) {
+                axesRendererRef.current.dispose();
+            }
+        };
+    }, []);
+
+    useEffect(() => {
+        if (forceData && forceData.normal) {
+            updateMesh(forceData);
+        }
+    }, [forceData, sliderValue]);
 
     const handleResetView = () => {
         if (!cameraRef.current || !controlsRef.current || !geometryRef.current) return;
@@ -888,12 +798,10 @@ useEffect(() => {
         const fov = camera.fov * (Math.PI / 180);
         const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
 
-
         if (meshRef.current) {
             meshRef.current.position.set(-center.x, -center.y, -center.z);
         }
 
-        // 将相机位置设置为负Z轴方向
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
         camera.up.set(0, 1, 0);
@@ -902,16 +810,11 @@ useEffect(() => {
         controls.update();
     };
 
-
-    const handleModeChange = (mode) => {
-        setDisplayMode(prevMode => mode === prevMode ? mode : mode);
-    };
-
     const handleAddSequence = () => {
         const trimmedNumber = sequenceNumber.trim();
         const parsedNumber = parseInt(trimmedNumber, 10);
         if (trimmedNumber && !isNaN(parsedNumber)) {
-            setSequenceList([...sequenceList, parsedNumber]);  // 存储整数
+            setSequenceList([...sequenceList, parsedNumber.toString()]);
             setSequenceNumber('');
         } else {
             toast.error(t('invalidSerialNumber'));
@@ -922,16 +825,26 @@ useEffect(() => {
         setSequenceList(sequenceList.filter((_, i) => i !== index));
     };
 
-    // ThreeScene.jsx 修改部分
     const handleSequenceClick = (sequence) => {
         if (socket && socket.connected) {
-            const camId = parseInt(sequence, 10);  // 将序列号转换为整数
+            const camId = parseInt(sequence, 10);
             if (isNaN(camId)) {
                 toast.error(t('invalidSerialNumber'));
                 return;
             }
-            socket.emit('set_cam_id', { cam_id: camId });
+            socket.emit('set_cam_id', {cam_id: camId});
+            setSelectedSequence(sequence); // 更新选中的序列号
             toast.info(t('fetchingSensorData'));
+        } else {
+            toast.error(t('socketNotConnected'));
+        }
+    };
+
+    // 新增点击处理函数
+    const handleFetchDevicesClick = () => {
+        if (socket && socket.connected) {
+            onFetchDevices();
+            toast.info(t('fetchingDevices'));
         } else {
             toast.error(t('socketNotConnected'));
         }
@@ -943,13 +856,13 @@ useEffect(() => {
             sx={{
                 position: 'relative',
                 height: '95%',
-                backgroundColor: '#2d2d2d',
+                backgroundColor: '#232528',
                 borderRadius: '18px',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                margin: '10PX 20px',
-                marginRight:'30px',
+                margin: '10px 20px',
+                marginRight: '30px',
             }}
         >
             <ResetButton onClick={handleResetView} title={t('resetView')}>
@@ -961,26 +874,25 @@ useEffect(() => {
 
             <Tooltip
                 title={t('notPressSensor')}
-                placement="bottom" // 提示显示在按钮上方
-                arrow // 显示箭头
+                placement="bottom"
+                arrow
                 componentsProps={{
                     tooltip: {
                         sx: {
-                            backgroundColor: '#322', // 深色背景
-                            color: '#fff', // 白色文本
-                            borderRadius: '8px', // 圆角
-                            padding: '10px 20px', // 内边距
-                            fontSize: '14px', // 字体大小
+                            backgroundColor: '#322',
+                            color: '#fff',
+                            borderRadius: '8px',
+                            padding: '10px 20px',
+                            fontSize: '14px',
                         },
                     },
                     arrow: {
                         sx: {
-                            color: '#322', // 箭头颜色与背景一致
+                            color: '#322',
                         },
                     },
                 }}
             >
-
                 <CalibrateButton
                     sx={{
                         width: '100px',
@@ -995,45 +907,6 @@ useEffect(() => {
                     <Typography variant="caption">{t('calibrate')}</Typography>
                 </CalibrateButton>
             </Tooltip>
-
-            {/*<ViewControls>*/}
-            {/*    <ButtonGroup*/}
-            {/*        variant="contained"*/}
-            {/*        size="small"*/}
-            {/*        sx={{*/}
-            {/*            backgroundColor: 'rgba(45, 45, 45, 0.7)',*/}
-            {/*            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',*/}
-            {/*            borderRadius: '4px',*/}
-            {/*            padding: '4px',*/}
-            {/*        }}*/}
-            {/*    >*/}
-            {/*        <ViewButton*/}
-            {/*            onClick={() => handleModeChange('deformation')}*/}
-            {/*            sx={{*/}
-            {/*                minWidth: '180px',*/}
-            {/*                backgroundColor: displayMode === 'deformation' ? '#FF4040' : 'rgba(60, 60, 60, 0.7)',*/}
-            {/*                '&:hover': {*/}
-            {/*                    backgroundColor: displayMode === 'deformation' ? '#8B0000' : 'rgba(70, 70, 70, 0.7)',*/}
-            {/*                },*/}
-            {/*            }}*/}
-            {/*        >*/}
-            {/*            {t('deformation')}*/}
-            {/*        </ViewButton>*/}
-            {/*        <ViewButton*/}
-            {/*            onClick={() => handleModeChange('force')}*/}
-            {/*            sx={{*/}
-            {/*                minWidth: '180px',*/}
-            {/*                backgroundColor: displayMode === 'force' ? '#FF4040' : 'rgba(60, 60, 60, 0.7)',*/}
-            {/*                '&:hover': {*/}
-            {/*                    backgroundColor: displayMode === 'force' ? '#8B0000' : 'rgba(70, 70, 70, 0.7)',*/}
-            {/*                },*/}
-            {/*            }}*/}
-            {/*        >*/}
-            {/*            {t('forceDistribution')}*/}
-            {/*        </ViewButton>*/}
-            {/*    </ButtonGroup>*/}
-            {/*</ViewControls>*/}
-
 
             <SliderContainer>
                 <CircleValue isRight={false}>
@@ -1061,62 +934,62 @@ useEffect(() => {
                         },
                     }}
                 >
-                <Box sx={{flex: 1, position: 'relative',padding: '0 5px',}}
-                     onMouseEnter={() => setIsTooltipOpen(true)} // 鼠标进入时显示 Tooltip
-                     onMouseLeave={() => setIsTooltipOpen(false)} >
-                    <Slider
-                        min={0}
-                        max={11}
-                        step={1}
-                        value={sliderValue}
-                        onChange={(value) => setSliderValue(value)}
-                        // handle={CustomHandleWithTooltip}
-                        handleStyle={{
-                            width: '20px', // 直接设置手柄样式
-                            height: '20px',
-                            backgroundColor: '#a0a5a7',
-                            border: 'none',
-                            marginTop: '-10px', // 调整位置以居中
-                        }}
-                        railStyle={{
-                            backgroundColor: '#121314', // 滑块经过的轨道颜色
-                            height: 16,
-                            top:-3,
-                        }}
-                        trackStyle={{
-                            backgroundColor: '#535657', // 滑块经过的底层轨道颜色
-                            height: 16,
-                            top:-3,
-                        }}
-                        dotStyle={{
-                            border: 'none',
-                            backgroundColor: '#fff',//刻度条
-                            width: 1,
-                            height: 8,
-                            top: -3,
-                        }}
-                        activeDotStyle={{
-                            backgroundColor: '#fff',
-                        }}
-                        marks={marks}
-                        style={{
-                            width: '100%',
-                        }}
-                    />
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            //滑动进度数值提示
-                            position: 'absolute',
-                            top: '-25px',
-                            left: `calc(${(sliderValue / 11) * 100}%)`,
-                            color: '#fff',
-                            transform: 'translateX(-50%)',
-                        }}
+                    <Box
+                        sx={{flex: 1, position: 'relative', padding: '0 5px'}}
+                        onMouseEnter={() => setIsTooltipOpen(true)}
+                        onMouseLeave={() => setIsTooltipOpen(false)}
                     >
-                        {sliderValue}
-                    </Typography>
-                </Box>
+                        <Slider
+                            min={0}
+                            max={11}
+                            step={1}
+                            value={sliderValue}
+                            onChange={(value) => setSliderValue(value)}
+                            handleStyle={{
+                                width: '20px',
+                                height: '20px',
+                                backgroundColor: '#a0a5a7',
+                                border: 'none',
+                                marginTop: '-10px',
+                            }}
+                            railStyle={{
+                                backgroundColor: '#121314',
+                                height: 16,
+                                top: -3,
+                            }}
+                            trackStyle={{
+                                backgroundColor: '#535657',
+                                height: 16,
+                                top: -3,
+                            }}
+                            dotStyle={{
+                                border: 'none',
+                                backgroundColor: '#fff',
+                                width: 1,
+                                height: 8,
+                                top: -3,
+                            }}
+                            activeDotStyle={{
+                                backgroundColor: '#fff',
+                            }}
+                            marks={marks}
+                            style={{
+                                width: '100%',
+                            }}
+                        />
+                        <Typography
+                            variant="caption"
+                            sx={{
+                                position: 'absolute',
+                                top: '-25px',
+                                left: `calc(${(sliderValue / 11) * 100}%)`,
+                                color: '#fff',
+                                transform: 'translateX(-50%)',
+                            }}
+                        >
+                            {sliderValue}
+                        </Typography>
+                    </Box>
                 </Tooltip>
                 <CircleValue isRight={true}>
                     <Typography variant="caption">11</Typography>
@@ -1125,14 +998,29 @@ useEffect(() => {
 
             <InfoContainer>
                 <Typography variant="caption" sx={{color: '#fff'}}>
-                    {t('Framerate')}: {serverFps.toFixed(2)} FPS &nbsp;&nbsp;&nbsp; ID: AD2-0077L &nbsp;&nbsp;&nbsp; {t('Temperature')}: 36°C
+                    {t('Framerate')}: {serverFps.toFixed(2)} FPS ID: {selectedSequence}
                 </Typography>
             </InfoContainer>
 
             <SequenceContainer>
-                <Typography variant="caption" sx={{color: '#fff', fontSize: '18px'}}>
-                    {t('sequencePlaceholder')}
-                </Typography>
+                <Box sx={{display: 'flex', alignItems: 'center'}}>
+                    <Box
+                        onClick={handleFetchDevicesClick}
+                        sx={{
+                            cursor: socket && socket.connected ? 'pointer' : 'not-allowed',
+                            opacity: socket && socket.connected ? 1 : 0.5,
+                        }}
+                    >
+                        <img
+                            src={new URL('../assets/tips.png', import.meta.url).href}
+                            alt="tips"
+                            style={{width: 30, height: 20}}
+                        />
+                    </Box>
+                    <Typography variant="caption" sx={{color: '#fff', fontSize: '18px', marginLeft: '10px'}}>
+                        {t('sequencePlaceholder')}
+                    </Typography>
+                </Box>
                 <Typography variant="caption" sx={{color: '#a0a5a7', fontSize: '14px'}}>
                     {t('onlySupports')}
                 </Typography>
@@ -1148,7 +1036,7 @@ useEffect(() => {
                         value={sequenceNumber}
                         onChange={(e) => {
                             const value = e.target.value;
-                            if (value === '' || /^\d*$/.test(value)) {  // 只允许空字符串或数字
+                            if (value === '' || /^\d*$/.test(value)) {
                                 setSequenceNumber(value);
                             }
                         }}
@@ -1156,11 +1044,11 @@ useEffect(() => {
                         placeholder={t('inputSerialNumber')}
                         sx={{
                             backgroundColor: 'rgba(160, 165, 167, 0)',
-                            input: { color: '#36393c' },
+                            input: {color: '#36393c'},
                             '& .MuiOutlinedInput-root': {
-                                '& fieldset': { borderColor: 'transparent' },
-                                '&:hover fieldset': { borderColor: 'transparent' },
-                                '&.Mui-focused fieldset': { borderColor: 'transparent' },
+                                '& fieldset': {borderColor: 'transparent'},
+                                '&:hover fieldset': {borderColor: 'transparent'},
+                                '&.Mui-focused fieldset': {borderColor: 'transparent'},
                             },
                             width: '150px',
                         }}

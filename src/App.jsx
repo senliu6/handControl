@@ -1,25 +1,62 @@
-import {Box, Typography, IconButton, Chip} from '@mui/material';
+import { Box, Typography, IconButton, Chip, Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField } from '@mui/material';
 import ChartPanel from './components/ChartPanel';
 import ThreeScene from './components/ThreeScene';
-import {LanguageProvider, useLanguage} from './contexts/LanguageContext';
+import { LanguageProvider, useLanguage } from './contexts/LanguageContext';
 import LanguageIcon from '@mui/icons-material/Language';
-import {useEffect, useRef, useState} from 'react';
-import {io} from 'socket.io-client';
-import {ToastContainer, toast} from 'react-toastify';
+import SettingsIcon from '@mui/icons-material/Settings';
+import { useEffect, useRef, useState } from 'react';
+import { io } from 'socket.io-client';
+import { ToastContainer, toast } from 'react-toastify';
 import pako from 'pako';
 import 'react-toastify/dist/ReactToastify.css';
 
+// 获取 WebSocket 地址
+const getWebSocketUrl = () => {
+    // 从 localStorage 获取用户配置
+    const savedConfig = localStorage.getItem('websocketConfig');
+    if (savedConfig) {
+        const { ip, port } = JSON.parse(savedConfig);
+        return `ws://${ip}:${port}`;
+    }
+    // 默认地址
+    const host = window.location.hostname || 'localhost';
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    return `${protocol}//${host}:5000`;
+};
+
 const App = () => {
-    const {toggleLanguage, t, language} = useLanguage();
+    const { toggleLanguage, t, language } = useLanguage();
     const socketRef = useRef(null);
     const [forceData, setForceData] = useState(null);
     const [socketStatus, setSocketStatus] = useState('disconnected');
+    const [connectedDevices, setConnectedDevices] = useState([]);
     const lastLogTime = useRef(0);
     const prevSocketStatus = useRef('disconnected');
     const [serverFps, setServerFps] = useState(0);
+    const [fetchDevicesTrigger, setFetchDevicesTrigger] = useState(0);
+    // 配置窗口状态
+    const [openConfigDialog, setOpenConfigDialog] = useState(false);
+    const [configIp, setConfigIp] = useState('');
+    const [configPort, setConfigPort] = useState('');
 
+    // 初始化时加载保存的配置
     useEffect(() => {
-        socketRef.current = io('http://localhost:5000', {
+        const savedConfig = localStorage.getItem('websocketConfig');
+        if (savedConfig) {
+            const { ip, port } = JSON.parse(savedConfig);
+            setConfigIp(ip);
+            setConfigPort(port);
+        } else {
+            setConfigIp(window.location.hostname || 'localhost');
+            setConfigPort('5000');
+        }
+    }, []);
+
+    // WebSocket 连接逻辑
+    useEffect(() => {
+        const wsUrl = getWebSocketUrl();
+        console.log(`正在连接到 WebSocket: ${wsUrl}`);
+        socketRef.current = io(wsUrl, {
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
@@ -31,7 +68,7 @@ const App = () => {
         });
 
         socketRef.current.on('status', (data) => {
-            console.log('Server status:', data.message);
+            console.log('服务器状态:', data.message);
         });
 
         socketRef.current.on('sensor_initialized', (response) => {
@@ -42,9 +79,20 @@ const App = () => {
             }
         });
 
+        socketRef.current.on('connected_devices', (response) => {
+            if (response.status === 'success') {
+                setConnectedDevices(response.devices || []);
+                if (response.devices.length === 0) {
+                    toast.info(t('noDevicesFound'));
+                }
+            } else {
+                toast.error(t('fetchDevicesFailed') + ': ' + response.message);
+            }
+        });
+
         socketRef.current.on('data', (data) => {
             const tStart = performance.now();
-            const {metadata, normal, shear, arrows} = data;
+            const { metadata, normal, shear, arrows } = data;
             const [height, width] = metadata.shape;
 
             try {
@@ -59,10 +107,10 @@ const App = () => {
                 const shearFlat = new Float32Array(shearDecompressed);
                 const arrowsFlat = new Float32Array(arrowsDecompressed);
 
-                const normal2D = Array.from({length: height}, (_, i) =>
+                const normal2D = Array.from({ length: height }, (_, i) =>
                     Array.from(normalFlat.slice(i * width, (i + 1) * width))
                 );
-                const shear2D = Array.from({length: height}, (_, i) => {
+                const shear2D = Array.from({ length: height }, (_, i) => {
                     const row = [];
                     for (let j = 0; j < width; j++) {
                         const idx = (i * width + j) * 2;
@@ -91,7 +139,7 @@ const App = () => {
                     normal: normal2D,
                     shear: shear2D,
                     arrows: arrowsData,
-                    timestamp: metadata.timestamp
+                    timestamp: metadata.timestamp,
                 };
                 const tParseEnd = performance.now();
 
@@ -99,7 +147,6 @@ const App = () => {
                 setForceData(forceDataParsed);
                 setServerFps(metadata.serverFps || 0);
                 const tSetEnd = performance.now();
-
             } catch (error) {
                 console.error('处理数据出错:', error);
             }
@@ -130,6 +177,12 @@ const App = () => {
     }, [t]);
 
     useEffect(() => {
+        if (fetchDevicesTrigger > 0 && socketRef.current && socketRef.current.connected) {
+            socketRef.current.emit('get_connected_devices', {});
+        }
+    }, [fetchDevicesTrigger]);
+
+    useEffect(() => {
         if (prevSocketStatus.current !== socketStatus) {
             if (socketStatus === 'connected') {
                 toast.success(t('socketConnected'), {
@@ -154,7 +207,7 @@ const App = () => {
                         label={t('connected')}
                         color="success"
                         size="14px"
-                        sx={{backgroundColor: '#4caf50', color: '#fff', padding: '10px'}}
+                        sx={{ backgroundColor: '#4caf50', color: '#fff', padding: '10px' }}
                     />
                 );
             case 'disconnected':
@@ -163,7 +216,7 @@ const App = () => {
                         label={t('disconnected')}
                         color="error"
                         size="14px"
-                        sx={{backgroundColor: '#f44336', color: '#fff'}}
+                        sx={{ backgroundColor: '#f44336', color: '#fff' }}
                     />
                 );
             case 'error':
@@ -172,7 +225,7 @@ const App = () => {
                         label={t('error')}
                         color="error"
                         size="14px"
-                        sx={{backgroundColor: '#f44336', color: '#fff'}}
+                        sx={{ backgroundColor: '#f44336', color: '#fff' }}
                     />
                 );
             default:
@@ -181,7 +234,7 @@ const App = () => {
                         label={t('unknown')}
                         color="default"
                         size="14px"
-                        sx={{backgroundColor: '#757575', color: '#fff'}}
+                        sx={{ backgroundColor: '#757575', color: '#fff' }}
                     />
                 );
         }
@@ -190,6 +243,59 @@ const App = () => {
     const handleLanguageSwitch = () => {
         toggleLanguage();
         window.location.reload();
+    };
+
+    const handleFetchDevices = () => {
+        setFetchDevicesTrigger(prev => prev + 1);
+    };
+
+    // 配置窗口处理
+    const handleOpenConfigDialog = () => {
+        setOpenConfigDialog(true);
+    };
+
+    const handleCloseConfigDialog = () => {
+        setOpenConfigDialog(false);
+    };
+
+    const handleSaveConfig = () => {
+        if (!configIp || !configPort) {
+            toast.error(t('invalidConfig') || '请输入有效的 IP 和端口');
+            return;
+        }
+        // 验证 IP 和端口格式
+        const ipRegex = /^(?:\d{1,3}\.){3}\d{1,3}$/;
+        if (!ipRegex.test(configIp)) {
+            toast.error(t('invalidIp') || '请输入有效的 IP 地址');
+            return;
+        }
+        const portNum = parseInt(configPort, 10);
+        if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
+            toast.error(t('invalidPort') || '请输入有效的端口号 (1-65535)');
+            return;
+        }
+
+        // 保存配置到 localStorage
+        const config = { ip: configIp, port: configPort };
+        localStorage.setItem('websocketConfig', JSON.stringify(config));
+        toast.success(t('configSaved') || '配置已保存');
+
+        // 断开当前 WebSocket 连接
+        if (socketRef.current) {
+            socketRef.current.disconnect();
+        }
+
+        // 触发重新连接
+        const wsUrl = `ws://${configIp}:${configPort}`;
+        console.log(`重新连接到 WebSocket: ${wsUrl}`);
+        socketRef.current = io(wsUrl, {
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+            transports: ['websocket'],
+        });
+
+        setOpenConfigDialog(false);
     };
 
     return (
@@ -215,45 +321,39 @@ const App = () => {
                         alignItems: 'center',
                     }}
                 >
-                    <Box sx={{display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px'}}>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flex: 1, padding: '10px' }}>
                         <img
                             src={new URL('./assets/logo.png', import.meta.url).href}
                             alt="Logo"
-                            style={{width: 400, height: 60, marginLeft: '20px'}}
+                            style={{ width: 350, height: 60, marginLeft: '20px' }}
                         />
-                        <Box sx={{display: 'flex', alignItems: 'center', gap: 1}}>
-                            <Typography variant="body2" sx={{color: '#fff', fontSize: '18px'}}>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Typography variant="body2" sx={{ color: '#fff', fontSize: '18px' }}>
                                 {t('connectionStatus')}:
                             </Typography>
                             {getStatusChip()}
                         </Box>
-                        {/* 将语言切换按钮移动到这里 */}
-                        <Box
-                            onClick={handleLanguageSwitch}
-                            sx={{
-                                display: 'flex',
-                                alignItems: 'center',
-                                marginLeft: 'auto', // 推到右侧
-                                marginRight: '20px',
-                            }}
-                        >
-                            <IconButton sx={{color: '#fff', ml: 2}}>
-                                <LanguageIcon/>
-                            </IconButton>
-                            <Typography variant="body1" sx={{color: '#fff', ml: 1, fontSize: '16px'}}>
-                                {language === 'en' ? 'EN >' : 'ZH >'}
-                            </Typography>
-                        </Box>
                     </Box>
-                    <Box sx={{display: 'flex', justifyContent: 'flex-end', marginTop: '10px'}}>
-                        <Typography variant="h3" sx={{color: '#fff', margin: '10px 20px'}}>
+                    <Box sx={{ display: 'flex', justifyContent: 'flex-end', marginTop: '10px' }}>
+                        <Typography variant="h4" sx={{ color: '#fff', margin: '10px 20px' }}>
                             {t('DM_Tac')}
                         </Typography>
                     </Box>
+                    <Box sx={{ display: 'flex', alignItems: 'center', marginRight: '20px' }}>
+                        <IconButton onClick={handleOpenConfigDialog} sx={{ color: '#fff', ml: 2 }}>
+                            <SettingsIcon />
+                        </IconButton>
+                        <IconButton onClick={handleLanguageSwitch} sx={{ color: '#fff', ml: 2 }}>
+                            <LanguageIcon />
+                        </IconButton>
+                        <Typography variant="body1" sx={{ color: '#fff', ml: 1, fontSize: '16px' }}>
+                            {language === 'en' ? 'EN >' : 'ZH >'}
+                        </Typography>
+                    </Box>
                 </Box>
-                <Box sx={{display: 'flex', height: 'calc(92% - 10px)', mb: 2}}>
-                    <Box sx={{flex: '0 0 20%', height: '100%', overflow: 'hidden'}}>
-                        <ChartPanel forceData={forceData} socketStatus={socketStatus}/>
+                <Box sx={{ display: 'flex', height: 'calc(92% - 10px)', mb: 2 }}>
+                    <Box sx={{ flex: '0 0 20%', height: '100%', overflow: 'hidden' }}>
+                        <ChartPanel forceData={forceData} socketStatus={socketStatus} />
                     </Box>
                     <Box
                         sx={{
@@ -270,13 +370,40 @@ const App = () => {
                             socket={socketRef.current}
                             serverFps={serverFps}
                             language={language}
-                            style={{flexGrow: 1}}
+                            connectedDevices={connectedDevices}
+                            onFetchDevices={handleFetchDevices}
+                            style={{ flexGrow: 1 }}
                         />
-
                     </Box>
                 </Box>
+                <Dialog open={openConfigDialog} onClose={handleCloseConfigDialog}>
+                    <DialogTitle>{t('configureWebSocket') || '配置 WebSocket 地址'}</DialogTitle>
+                    <DialogContent>
+                        <TextField
+                            autoFocus
+                            margin="dense"
+                            label={t('ipAddress') || 'IP 地址'}
+                            type="text"
+                            fullWidth
+                            value={configIp}
+                            onChange={(e) => setConfigIp(e.target.value)}
+                        />
+                        <TextField
+                            margin="dense"
+                            label={t('port') || '端口'}
+                            type="text"
+                            fullWidth
+                            value={configPort}
+                            onChange={(e) => setConfigPort(e.target.value)}
+                        />
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={handleCloseConfigDialog}>{t('cancel') || '取消'}</Button>
+                        <Button onClick={handleSaveConfig}>{t('save') || '保存'}</Button>
+                    </DialogActions>
+                </Dialog>
+                <ToastContainer position="top-right" autoClose={3000} />
             </Box>
-            <ToastContainer position="top-right" autoClose={3000}/>
         </LanguageProvider>
     );
 };
