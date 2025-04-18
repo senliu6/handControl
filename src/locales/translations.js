@@ -1,5 +1,6 @@
 export const translations = {
   en: {
+    titleTop:'3D Visual Analytics System',
     // App.jsx
     connectionStatus: 'Connection Status',
     connected: 'Connected',
@@ -36,6 +37,11 @@ export const translations = {
     onlySupports:'Only supports displaying one sensor at a time.',
     noDevicesFound: 'No connected devices found',
     fetchDevicesFailed: 'Failed to fetch connected devices',
+    showArrows:'showArrows',
+    arrowDrawingPerformanceWarning:'Arrow Drawing Performance Warning',
+    configureWebSocket:'configureWebSocket',
+    ipAddress:'ipAddress',
+    port:'port'
   },
   zh: {
     // App.jsx
@@ -75,6 +81,12 @@ export const translations = {
     onlySupports:'仅支持同时显示一个传感器',
     noDevicesFound: '未找到连接的设备',
     fetchDevicesFailed: '获取连接设备失败',
+    titleTop:'3D可视化分析系统',
+    showArrows:'展示箭头',
+    arrowDrawingPerformanceWarning:'箭头绘制性能警告',
+    configureWebSocket:' 配置 WebSocket 地址',
+    ipAddress:'IP 地址',
+    port:'端口'
 
   },
 };

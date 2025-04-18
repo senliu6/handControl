@@ -205,8 +205,14 @@ const ChartPanel = ({ forceData }) => {
                 seriesData.push([timeSinceStart, newValue]);
                 if (seriesData.length > 500) seriesData.shift();
 
-                const xMin = Math.max(0, timeSinceStart - 10000);
+                const xMin = Math.max(0, timeSinceStart - 10000); // 最近 10 秒
                 const xMax = timeSinceStart;
+
+                // 动态计算 X 轴间隔（以秒为单位）
+                const timeRangeSeconds = (xMax - xMin) / 1000; // 转换为秒
+                const desiredLabelCount = 6; // 目标标签数量（可调整）
+                const intervalSeconds = Math.ceil(timeRangeSeconds / desiredLabelCount); // 每隔几秒一个标签
+                const intervalMilliseconds = intervalSeconds * 1000; // 转换为毫秒
 
                 chart.setOption({
                     title: [
@@ -223,7 +229,7 @@ const ChartPanel = ({ forceData }) => {
                             textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
                         },
                         {
-                            text: 'Time(ms)',
+                            text: 'Time (s)',
                             right: 'right',
                             bottom: 'bottom',
                             textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
@@ -232,9 +238,9 @@ const ChartPanel = ({ forceData }) => {
                     xAxis: {
                         min: xMin,
                         max: xMax,
-                        interval: (xMax - xMin) / 5,
+                        interval: intervalMilliseconds,
                         axisLabel: {
-                            formatter: (value) => `${Math.round(value)}`,
+                            formatter: (value) => `${(value / 1000).toFixed(1)}s`, // 显示为秒，保留一位小数
                             color: '#fff',
                             fontSize: 12,
                             fontFamily: 'Roboto',

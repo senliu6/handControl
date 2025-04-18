@@ -10,6 +10,8 @@ import { ToastContainer, toast } from 'react-toastify';
 import pako from 'pako';
 import 'react-toastify/dist/ReactToastify.css';
 
+
+
 // 获取 WebSocket 地址
 const getWebSocketUrl = () => {
     // 从 localStorage 获取用户配置
@@ -38,6 +40,11 @@ const App = () => {
     const [openConfigDialog, setOpenConfigDialog] = useState(false);
     const [configIp, setConfigIp] = useState('');
     const [configPort, setConfigPort] = useState('');
+
+    // 根据语言设置文档标题
+    useEffect(() => {
+        document.title = t('titleTop');
+    }, [language, t]);
 
     // 初始化时加载保存的配置
     useEffect(() => {
@@ -377,12 +384,12 @@ const App = () => {
                     </Box>
                 </Box>
                 <Dialog open={openConfigDialog} onClose={handleCloseConfigDialog}>
-                    <DialogTitle>{t('configureWebSocket') || '配置 WebSocket 地址'}</DialogTitle>
+                    <DialogTitle>{t('configureWebSocket')}</DialogTitle>
                     <DialogContent>
                         <TextField
                             autoFocus
                             margin="dense"
-                            label={t('ipAddress') || 'IP 地址'}
+                            label={t('ipAddress')}
                             type="text"
                             fullWidth
                             value={configIp}
@@ -390,7 +397,7 @@ const App = () => {
                         />
                         <TextField
                             margin="dense"
-                            label={t('port') || '端口'}
+                            label={t('port')}
                             type="text"
                             fullWidth
                             value={configPort}

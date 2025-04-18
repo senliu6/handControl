@@ -9,6 +9,8 @@ import {
     ListItem,
     ListItemText,
     ListItemSecondaryAction,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import {useLanguage} from '../contexts/LanguageContext';
 import {styled} from '@mui/material/styles';
@@ -143,6 +145,14 @@ const AddButton = styled(IconButton)(({theme}) => ({
     borderRadius: '10px',
     '&:hover': {backgroundColor: '#cc0000'},
 }));
+const ArrowToggleContainer = styled(Box)(({theme}) => ({
+    position: 'absolute',
+    top: '80px',
+    left: '20px',
+    backgroundColor: 'rgba(35, 37, 40, 0.7)',
+    borderRadius: '10px',
+    padding: '5px 10px',
+}));
 
 const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, onFetchDevices}) => {
     const {t} = useLanguage();
@@ -160,6 +170,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const axesSceneRef = useRef(null);
     const [displayMode] = useState('deformation');
     const [sliderValue, setSliderValue] = useState(5);
+    const [showArrows, setShowArrows] = useState(false);
+    const arrowsInitialized = useRef(false);
     const marks = Array.from({length: 12}, (_, i) => ({value: i, label: i})).reduce((acc, mark) => {
         if (mark.label === 0 || mark.label === 11) {
         } else {
@@ -173,21 +185,47 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const animationFrameId = useRef(null);
     const isMounted = useRef(false);
     const [sequenceNumber, setSequenceNumber] = useState('');
-    const [sequenceList, setSequenceList] = useState([]);
+    // 修改后的代码：
+    const [sequenceList, setSequenceList] = useState(() => {
+        const saved = localStorage.getItem('sequenceList');
+        return saved ? JSON.parse(saved) : [];
+    });
     const [frameRate, setFrameRate] = useState(0);
     const [isTooltipOpen, setIsTooltipOpen] = useState(false);
     const selectedArrowsRef = useRef([]);
     const lastSliderValue = useRef(sliderValue);
     const lastNormalMaxValue = useRef(null);
-    const [selectedSequence, setSelectedSequence] = useState('0'); // 新增状态，默认为 '0'
+    const [selectedSequence, setSelectedSequence] = useState('0');
+    const scaleRef = useRef(null); // 存储固定的 scale 值
+    const stepRef = useRef(1); // 固定 step 值
+    const meshCenterRef = useRef(null); // 存储初始化的 mesh 中心位置
+
+    // 控制服务器箭头数据发送
+    useEffect(() => {
+        if (socket && socket.connected) {
+            socket.emit('toggle_arrows', {enable: showArrows});
+            if (showArrows) {
+                toast.info('已启用箭头数据接收');
+            } else {
+                toast.info('已禁用箭头数据接收');
+            }
+        } else if (showArrows) {
+            toast.error('Socket 未连接，无法启用箭头数据');
+        }
+    }, [showArrows, socket]);
 
     useEffect(() => {
         if (connectedDevices && connectedDevices.length > 0) {
             setSequenceList(connectedDevices.map(id => id.toString()));
         } else {
-            setSequenceList([]);
+            // setSequenceList([]);
         }
     }, [connectedDevices]);
+
+    // 新增：保存 sequenceList 到 localStorage
+    useEffect(() => {
+        localStorage.setItem('sequenceList', JSON.stringify(sequenceList));
+    }, [sequenceList]);
 
     const handleCalibrate = () => {
         if (socket && socket.connected) {
@@ -216,42 +254,49 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     };
 
     const updateMesh = (data) => {
+        const startTime = performance.now();
 
         if (!data || !data.normal || !Array.isArray(data.normal) || data.normal.length === 0) {
+            console.log(`渲染耗时: 0ms (无有效数据)`);
             return;
         }
 
+        // 添加日志：打印 forceData 结构
         const height = data.normal.length;
         const width = data.normal[0]?.length || 0;
         const normal = data.normal;
         const shear = data.shear;
 
-        if (width === 0 || !Array.isArray(normal[0])) return;
 
-        if (!shear || !Array.isArray(shear) || shear.length !== height || shear[0].length !== width) {
+        if (width === 0 || !Array.isArray(normal[0])) {
+            console.log(`渲染耗时: 0ms (数据格式错误)`);
             return;
         }
 
-        const containerWidth = containerRef.current.clientWidth;
-        const targetWidth = containerWidth / 3;
-        const step = 1;
+        if (!shear || !Array.isArray(shear) || shear.length !== height || shear[0].length !== width) {
+            console.log(`渲染耗时: 0ms (shear 数据无效)`);
+            return;
+        }
+
+        const step = stepRef.current;
         const newWidth = Math.floor(width / step);
         const newHeight = Math.floor(height / step);
-        const scale = targetWidth / (newWidth * step);
+        const scale = scaleRef.current;
 
         const baseDepthScale = 10.0;
         const depthScale = baseDepthScale * 5;
         const hotColors = [
-            {r: 113 / 255, g: 114 / 255, b: 114 / 255},
-            {r: 219 / 255, g: 117 / 255, b: 121 / 255},
-            {r: 229 / 255, g: 50 / 255, b: 50 / 255},
+            { r: 113 / 255, g: 114 / 255, b: 114 / 255 },
+            { r: 219 / 255, g: 117 / 255, b: 121 / 255 },
+            { r: 229 / 255, g: 50 / 255, b: 50 / 255 },
         ];
 
         const arrowColors = [
-            {r: 66 / 255, g: 198 / 255, b: 175 / 255},
-            {r: 49 / 255, g: 133 / 255, b: 255 / 255},
-            {r: 126 / 255, g: 44 / 255, b: 255 / 255},
+            { r: 66 / 255, g: 198 / 255, b: 175 / 255 },
+            { r: 49 / 255, g: 133 / 255, b: 255 / 255 },
+            { r: 126 / 255, g: 44 / 255, b: 255 / 255 },
         ];
+
         let normalMin = Infinity, normalMax = -Infinity;
         for (let y = 0; y < height; y++) {
             for (let x = 0; x < width; x++) {
@@ -264,8 +309,12 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         }
         const normalRange = normalMax - normalMin > 0 ? normalMax - normalMin : 0;
 
+        // 添加日志：打印 normal 数据范围
+        // console.log(`normal 数据: min=${normalMin}, max=${normalMax}, range=${normalRange}`);
+
         let geometry = geometryRef.current || new THREE.BufferGeometry();
         geometryRef.current = geometry;
+
 
         const vertices = new Float32Array(newHeight * newWidth * 3);
         const colors = new Float32Array(newHeight * newWidth * 3);
@@ -275,6 +324,11 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const normalMaxFactor = Math.min(normalMax / maxNormalValue, 1.0);
 
         let minZ = Infinity, maxZ = -Infinity;
+
+        // z 计算：固定阈值减少缩放
+        const zThreshold = 0.1;
+        const absoluteThreshold = 0.1;
+
         for (let y = 0; y < newHeight; y++) {
             for (let x = 0; x < newWidth; x++) {
                 const origY = y * step;
@@ -285,15 +339,23 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 if (normalRange === 0) {
                     z = 0;
                 } else {
-                    const minThreshold = 0.05;
-                    const dynamicThreshold = normalMax * 0.3;
-                    const threshold = Math.max(minThreshold, dynamicThreshold);
+                    // const minThreshold = 0.05;
+                    // const dynamicThreshold = Math.min(normalMax * 0.3, 0.15); // 限制 dynamicThreshold 上限
+                    // const threshold = Math.max(minThreshold, dynamicThreshold);
 
-                    const absoluteThreshold = 0.1;
-                    if (n <= threshold || n < absoluteThreshold) {
+                    // const threshold = 0.1; // 固定阈值
+                    //
+                    // const absoluteThreshold = 0.1;
+                    // if (n <= threshold || n < absoluteThreshold) {
+                    //     z = 0;
+                    // } else {
+                    //     const adjustedNormal = (n - threshold) / (normalMax - threshold);
+                    //     z = -adjustedNormal * depthScale * normalMaxFactor;
+                    // }
+                    if (n <= zThreshold || n < absoluteThreshold) {
                         z = 0;
                     } else {
-                        const adjustedNormal = (n - threshold) / (normalMax - threshold);
+                        const adjustedNormal = (n - zThreshold) / (normalMax - zThreshold);
                         z = -adjustedNormal * depthScale * normalMaxFactor;
                     }
                 }
@@ -304,6 +366,11 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 vertices[idx + 2] = z;
                 minZ = Math.min(minZ, z);
                 maxZ = Math.max(maxZ, z);
+
+                //添加日志：打印部分顶点坐标（避免日志过多）
+                // if (x === 0 && y === 0 || x === newWidth-1 && y === newHeight-1) {
+                //     console.log(`顶点[${x},${y}]: x=${vertices[idx]}, y=${vertices[idx + 1]}, z=${vertices[idx + 2]}, normal=${n}`);
+                // }
             }
         }
 
@@ -344,6 +411,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         geometry.attributes.color.needsUpdate = true;
         geometry.computeVertexNormals();
 
+
         if (!meshRef.current) {
             const material = new THREE.MeshBasicMaterial({
                 vertexColors: true,
@@ -357,229 +425,331 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             const box = geometry.boundingBox;
             const center = box.getCenter(new THREE.Vector3());
             mesh.position.set(-center.x, -center.y, -center.z);
-        }
-
-        const baseArrowLength = 2.0;
-        const maxArrowLength = 10.0;
-        const baseArrowHeadLength = 0.5;
-        const baseArrowHeadWidth = 0.5;
-
-        const minArrowLength = 4.0;
-        const maxArrowLengthScale = 1.0;
-        const minArrowHeadLength = 8;
-        const maxArrowHeadLength = 0.5;
-        const minArrowHeadWidth = 3;
-        const maxArrowHeadWidth = 0.5;
-
-        const arrows = data.arrows;
-        if (!arrows || !Array.isArray(arrows)) {
-            return;
-        }
-
-        let arrowMinX = Infinity, arrowMaxX = -Infinity;
-        let arrowMinY = Infinity, arrowMaxY = -Infinity;
-        arrows.forEach(arrow => {
-            const start = arrow.start;
-            arrowMinX = Math.min(arrowMinX, start[0]);
-            arrowMaxX = Math.max(arrowMaxX, start[0]);
-            arrowMinY = Math.min(arrowMinY, start[1]);
-            arrowMaxY = Math.max(arrowMaxY, start[1]);
-        });
-
-        const arrowRangeX = arrowMaxX - arrowMinX > 0 ? arrowMaxX - arrowMinX : 1;
-        const arrowRangeY = arrowMaxY - arrowMinY > 0 ? arrowMaxY - arrowMinY : 1;
-
-        const totalArrows = arrows.length;
-        const sliderMax = 11;
-        let targetArrowCount;
-
-        if (sliderValue === 0) {
-            targetArrowCount = 0;
+            meshCenterRef.current = mesh.position.clone();
         } else {
-            const fraction = sliderValue / sliderMax;
-            targetArrowCount = Math.round(totalArrows * fraction);
-            targetArrowCount = Math.max(targetArrowCount, Math.round(totalArrows * 0.1));
+            meshRef.current.position.copy(meshCenterRef.current);
         }
 
-        while (arrowPoolRef.current.length < totalArrows) {
-            const arrow = new THREE.ArrowHelper(
-                new THREE.Vector3(0, 0, 1),
-                new THREE.Vector3(0, 0, 0),
-                1,
-                0xffffff,
-                baseArrowHeadLength,
-                baseArrowHeadWidth
-            );
-            arrow.line.material.depthTest = false;
-            arrow.cone.material.depthTest = false;
-            arrow.visible = false;
-            arrowsGroupRef.current.add(arrow);
-            arrowPoolRef.current.push(arrow);
-        }
+        if (showArrows) {
+            const baseArrowLength = 2.0;
+            const maxArrowLength = 10.0;
+            const baseArrowHeadLength = 0.5;
+            const baseArrowHeadWidth = 0.5;
 
-        const styleFactor = Math.pow(sliderValue / 120, 2);
-        const arrowLengthScale = minArrowLength + (maxArrowLengthScale - minArrowLength) * styleFactor;
-        const arrowHeadLength = minArrowHeadLength + (maxArrowHeadLength - minArrowHeadLength) * styleFactor;
-        const arrowHeadWidth = minArrowHeadWidth + (maxArrowHeadWidth - minArrowHeadWidth) * styleFactor;
+            const minArrowLength = 4.0;
+            const maxArrowLengthScale = 1.0;
+            const minArrowHeadLength = 8;
+            const maxArrowHeadLength = 0.5;
+            const minArrowHeadWidth = 3;
+            const maxArrowHeadWidth = 0.5;
 
-        const normalChanged = lastNormalMaxValue.current === null || Math.abs(normalMax - lastNormalMaxValue.current) > 0.01 * normalMax;
-        const sliderChanged = sliderValue !== lastSliderValue.current;
-
-        let selectedArrows = selectedArrowsRef.current;
-        if (normalChanged || sliderChanged) {
-            selectedArrows = [];
-            if (targetArrowCount > 0) {
-                const gridStepX = Math.max(1, Math.floor(newWidth / Math.sqrt(targetArrowCount)));
-                const gridStepY = Math.max(1, Math.floor(newHeight / Math.sqrt(targetArrowCount)));
-                const numPointsX = Math.floor(newWidth / gridStepX);
-                const numPointsY = Math.floor(newHeight / gridStepY);
-                const totalPoints = numPointsX * numPointsY;
-                const actualTargetCount = Math.min(targetArrowCount, totalPoints);
-
-                const targetPoints = [];
-                for (let y = 0; y < numPointsY; y++) {
-                    for (let x = 0; x < numPointsX; x++) {
-                        const posX = (x + 0.5) * gridStepX;
-                        const posY = (y + 0.5) * gridStepY;
-                        if (posX < newWidth && posY < newHeight) {
-                            targetPoints.push({x: posX, y: posY});
-                        }
-                    }
-                }
-
-                for (let i = targetPoints.length - 1; i > 0; i--) {
-                    const j = Math.floor(Math.random() * (i + 1));
-                    [targetPoints[i], targetPoints[j]] = [targetPoints[j], targetPoints[i]];
-                }
-                const selectedPoints = targetPoints.slice(0, actualTargetCount);
-
-                const usedIndices = new Set();
-                for (const point of selectedPoints) {
-                    const {x, y} = point;
-                    const origX = (x / newWidth) * arrowRangeX + arrowMinX;
-                    const origY = (y / newHeight) * arrowRangeY + arrowMinY;
-
-                    let closestArrow = null;
-                    let minDistance = Infinity;
-                    let closestIndex = -1;
-
-                    for (let i = 0; i < arrows.length; i++) {
-                        if (usedIndices.has(i)) continue;
-                        const arrowData = arrows[i];
-                        const start = arrowData.start;
-                        const dx = start[0] - origX;
-                        const dy = start[1] - origY;
-                        const distance = Math.sqrt(dx * dx + dy * dy);
-                        if (distance < minDistance) {
-                            minDistance = distance;
-                            closestArrow = arrowData;
-                            closestIndex = i;
-                        }
-                    }
-
-                    if (closestArrow) {
-                        selectedArrows.push({index: closestIndex, arrowData: closestArrow});
-                        usedIndices.add(closestIndex);
-                    }
-                }
-            }
-            selectedArrowsRef.current = selectedArrows;
-            lastSliderValue.current = sliderValue;
-            lastNormalMaxValue.current = normalMax;
-        }
-
-        arrowPoolRef.current.forEach(arrow => {
-            arrow.visible = false;
-        });
-
-        let arrowCount = 0;
-        const positionCounts = {};
-        const zThreshold = -0.1;
-        let validArrowCount = 0;
-
-        for (let i = 0; i < selectedArrows.length; i++) {
-            const arrow = arrowPoolRef.current[i];
-            const selectedArrow = selectedArrows[i];
-
-            if (!selectedArrow) continue;
-
-            const arrowData = selectedArrow.arrowData;
-            const start = arrowData.start;
-            const end = arrowData.end;
-
-            const origX = ((start[0] - arrowMinX) / arrowRangeX) * newWidth;
-            const origY = ((start[1] - arrowMinY) / arrowRangeY) * newHeight;
-
-            const mappedX = Math.floor(origX);
-            const mappedY = Math.floor(origY);
-            let posX = mappedX * scale * step;
-            let posY = mappedY * scale * step;
-            let posZ = 0;
-
-            let isInDepression = false;
-            if (mappedX >= 0 && mappedX < newWidth && mappedY >= 0 && mappedY < newHeight) {
-                const idx = (mappedY * newWidth + mappedX) * 3;
-                posZ = vertices[idx + 2];
-                if (posZ < zThreshold) {
-                    isInDepression = true;
-                    validArrowCount++;
-                }
+            const arrows = data.arrows;
+            if (!arrows || !Array.isArray(arrows)) {
+                const endTime = performance.now();
+                // console.log(`渲染耗时: ${(endTime - startTime).toFixed(2)}ms (无箭头数据)`);
+                return;
             }
 
-            if (!isInDepression) {
-                arrow.visible = false;
-                continue;
+            if (!arrowsInitialized.current) {
+                arrowsGroupRef.current = new THREE.Group();
+                sceneRef.current.add(arrowsGroupRef.current);
+                arrowPoolRef.current = []; // 清空箭头池
+                arrowsInitialized.current = true;
             }
 
-            const mesh = meshRef.current;
-            posX += mesh.position.x;
-            posY += mesh.position.y;
-            posZ += mesh.position.z;
+            let arrowMinX = Infinity, arrowMaxX = -Infinity;
+            let arrowMinY = Infinity, arrowMaxY = -Infinity;
+            arrows.forEach(arrow => {
+                const start = arrow.start;
+                arrowMinX = Math.min(arrowMinX, start[0]);
+                arrowMaxX = Math.max(arrowMaxX, start[0]);
+                arrowMinY = Math.min(arrowMinY, start[1]);
+                arrowMaxY = Math.max(arrowMaxY, start[1]);
+            });
 
-            arrow.position.set(posX, posY, posZ);
+            const arrowRangeX = arrowMaxX - arrowMinX > 0 ? arrowMaxX - arrowMinX : 1;
+            const arrowRangeY = arrowMaxY - arrowMinY > 0 ? arrowMaxY - arrowMinY : 1;
 
-            const endX = ((end[0] - arrowMinX) / arrowRangeX) * newWidth;
-            const endY = ((end[1] - arrowMinY) / arrowRangeY) * newHeight;
-            const shearX = (endX - origX) / step * scale;
-            const shearY = (endY - origY) / step * scale;
-            let direction = new THREE.Vector3(shearX, shearY, 0);
-            if (direction.lengthSq() === 0) {
-                direction.set(1, 0, 0);
+            const totalArrows = arrows.length;
+            const sliderMax = 11;
+            let targetArrowCount;
+
+            if (sliderValue === 0) {
+                targetArrowCount = 0;
             } else {
-                direction.normalize();
+                const fraction = sliderValue / sliderMax;
+                targetArrowCount = Math.round(totalArrows * fraction);
+                targetArrowCount = Math.max(targetArrowCount, Math.round(totalArrows * 0.1));
             }
 
-            const depth = zRange > 0 ? (maxZ - posZ) / zRange : 0;
-            const baseLength = baseArrowLength + (maxArrowLength - baseArrowLength) * depth * 0.5;
-            const arrowLength = baseLength * arrowLengthScale;
-            const adjustedArrowHeadLength = arrowHeadLength * (1 + depth * 0.5);
-            const adjustedArrowHeadWidth = adjustedArrowHeadLength * 0.5;
-
-            const color = interpolateColor(depth, arrowColors);
-            const arrowColor = new THREE.Color(color.r, color.g, color.b);
-
-            arrow.setDirection(direction);
-            arrow.setLength(arrowLength, adjustedArrowHeadLength, adjustedArrowHeadWidth);
-            arrow.setColor(arrowColor);
-            arrow.visible = true;
-            arrowCount++;
-
-            const posKey = `${Math.floor(mappedX / 10)}-${Math.floor(mappedY / 10)}`;
-            positionCounts[posKey] = (positionCounts[posKey] || 0) + 1;
-        }
-
-        console.log("箭头数量" + arrowCount + "---目标" + targetArrowCount)
-        if (arrowCount > targetArrowCount * 0.96 && arrowCount > 0) {
-            for (let i = 0; i < arrowPoolRef.current.length; i++) {
-                const arrow = arrowPoolRef.current[i];
+            // 初始化箭头池
+            while (arrowPoolRef.current.length < totalArrows) {
+                const arrow = new THREE.ArrowHelper(
+                    new THREE.Vector3(0, 0, 1),
+                    new THREE.Vector3(0, 0, 0),
+                    1,
+                    0xffffff,
+                    baseArrowHeadLength,
+                    baseArrowHeadWidth
+                );
+                arrow.line.material.depthTest = false;
+                arrow.cone.material.depthTest = false;
                 arrow.visible = false;
+                arrowsGroupRef.current.add(arrow);
+                arrowPoolRef.current.push(arrow);
             }
-            arrowCount = 0;
+
+            const styleFactor = Math.pow(sliderValue / 120, 2);
+            const arrowLengthScale = minArrowLength + (maxArrowLengthScale - minArrowLength) * styleFactor;
+            const arrowHeadLength = minArrowHeadLength + (maxArrowHeadLength - minArrowHeadLength) * styleFactor;
+            const arrowHeadWidth = minArrowHeadWidth + (maxArrowHeadWidth - minArrowHeadWidth) * styleFactor;
+
+            const normalChanged = lastNormalMaxValue.current === null || Math.abs(normalMax - lastNormalMaxValue.current) > 0.01 * normalMax;
+            const sliderChanged = sliderValue !== lastSliderValue.current;
+
+            let selectedArrows = selectedArrowsRef.current;
+            if (normalChanged || sliderChanged) {
+                selectedArrows = []; // 重置 selectedArrows
+                if (targetArrowCount > 0) {
+                    const gridStepX = Math.max(1, Math.floor(newWidth / Math.sqrt(targetArrowCount) * 0.5)); // 增加网格密度
+                    const gridStepY = Math.max(1, Math.floor(newHeight / Math.sqrt(targetArrowCount) * 0.5));
+                    const numPointsX = Math.floor(newWidth / gridStepX);
+                    const numPointsY = Math.floor(newHeight / gridStepY);
+                    const totalPoints = numPointsX * numPointsY;
+                    const actualTargetCount = Math.min(targetArrowCount, totalPoints);
+
+                    // console.log(`totalPoints: ${totalPoints}, numPointsX: ${numPointsX}, numPointsY: ${numPointsY}, gridStepX: ${gridStepX}, gridStepY: ${gridStepY}, actualTargetCount: ${actualTargetCount}`);
+
+                    if (totalPoints < targetArrowCount) {
+                        // 直接随机选择 targetArrowCount 个箭头
+                        const indices = Array.from({ length: arrows.length }, (_, i) => i);
+                        for (let i = indices.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [indices[i], indices[j]] = [indices[j], indices[i]];
+                        }
+                        const selectedIndices = indices.slice(0, targetArrowCount);
+                        selectedArrows = selectedIndices.map(index => ({
+                            index,
+                            arrowData: arrows[index]
+                        }));
+                    } else {
+                        // 现有网格点选择逻辑
+                        const targetPoints = [];
+                        for (let y = 0; y < numPointsY; y++) {
+                            for (let x = 0; x < numPointsX; x++) {
+                                const posX = (x + 0.5) * gridStepX;
+                                const posY = (y + 0.5) * gridStepY;
+                                if (posX < newWidth && posY < newHeight) {
+                                    targetPoints.push({ x: posX, y: posY });
+                                }
+                            }
+                        }
+
+                        for (let i = targetPoints.length - 1; i > 0; i--) {
+                            const j = Math.floor(Math.random() * (i + 1));
+                            [targetPoints[i], targetPoints[j]] = [targetPoints[j], targetPoints[i]];
+                        }
+                        const selectedPoints = targetPoints.slice(0, actualTargetCount);
+
+                        const usedIndices = new Set();
+                        for (const point of selectedPoints) {
+                            const { x, y } = point;
+                            const origX = (x / newWidth) * arrowRangeX + arrowMinX;
+                            const origY = (y / newHeight) * arrowRangeY + arrowMinY;
+
+                            let closestArrow = null;
+                            let minDistance = Infinity;
+                            let closestIndex = -1;
+
+                            for (let i = 0; i < arrows.length; i++) {
+                                if (usedIndices.has(i)) continue;
+                                const arrowData = arrows[i];
+                                const start = arrowData.start;
+                                const dx = start[0] - origX;
+                                const dy = start[1] - origY;
+                                const distance = Math.sqrt(dx * dx + dy * dy);
+                                if (distance < minDistance) {
+                                    minDistance = distance;
+                                    closestArrow = arrowData;
+                                    closestIndex = i;
+                                }
+                            }
+
+                            if (closestArrow) {
+                                selectedArrows.push({ index: closestIndex, arrowData: closestArrow });
+                                usedIndices.add(closestIndex);
+                            }
+                        }
+                    }
+                }
+                selectedArrowsRef.current = selectedArrows;
+                lastSliderValue.current = sliderValue;
+                lastNormalMaxValue.current = normalMax;
+
+                console.log(`sliderValue: ${sliderValue}, targetArrowCount: ${targetArrowCount}, selectedArrows.length: ${selectedArrows.length}`);
+            }
+
+            // 确保箭头池足够支持 selectedArrows.length
+            if (arrowPoolRef.current.length < selectedArrows.length) {
+                console.warn(`Extending arrowPoolRef.current from ${arrowPoolRef.current.length} to ${selectedArrows.length}`);
+                while (arrowPoolRef.current.length < selectedArrows.length) {
+                    const arrow = new THREE.ArrowHelper(
+                        new THREE.Vector3(0, 0, 1),
+                        new THREE.Vector3(0, 0, 0),
+                        1,
+                        0xffffff,
+                        baseArrowHeadLength,
+                        baseArrowHeadWidth
+                    );
+                    arrow.line.material.depthTest = false;
+                    arrow.cone.material.depthTest = false;
+                    arrow.visible = false;
+                    arrowsGroupRef.current.add(arrow);
+                    arrowPoolRef.current.push(arrow);
+                }
+            }
+
+            // 重置所有箭头
+            // console.log(`arrowPoolRef.current length: ${arrowPoolRef.current.length}, selectedArrows.length: ${selectedArrows.length}`);
+            // console.log(`arrowPoolRef.current undefined elements: ${arrowPoolRef.current.some((arrow, i) => arrow === undefined ? (console.log(`Undefined at index ${i}`), true) : false)}`);
+            arrowPoolRef.current.forEach((arrow, index) => {
+                if (!arrow) {
+                    console.warn(`Undefined arrow at index ${index}`);
+                    return;
+                }
+                arrow.visible = false;
+            });
+
+            let arrowCount = 0;
+            const positionCounts = {};
+            const zThreshold = -0.1;
+            let validArrowCount = 0;
+
+            // 箭头渲染：动态阈值
+            const arrowMinThreshold = 0.05;
+            const arrowDynamicThreshold = Math.min(normalMax * 0.3, 0.15);
+            const arrowThreshold = Math.max(arrowMinThreshold, arrowDynamicThreshold);
+            const strictZThreshold = -0.5; // 严格筛选
+
+            // 箭头渲染循环
+            for (let i = 0; i < selectedArrows.length; i++) {
+                const arrow = arrowPoolRef.current[i];
+                const selectedArrow = selectedArrows[i];
+
+                if (!arrow) {
+                    console.warn(`Undefined arrow at index ${i}`);
+                    continue;
+                }
+                if (!selectedArrow) continue;
+
+                const arrowData = selectedArrow.arrowData;
+                const start = arrowData.start;
+                const end = arrowData.end;
+
+                const origX = ((start[0] - arrowMinX) / arrowRangeX) * newWidth;
+                const origY = ((start[1] - arrowMinY) / arrowRangeY) * newHeight;
+
+                const mappedX = Math.floor(origX);
+                const mappedY = Math.floor(origY);
+                let posX = mappedX * scale * step;
+                let posY = mappedY * scale * step;
+                let posZ = 0;
+                let arrowZ = 0;
+
+                let isInDepression = false;
+                if (mappedX >= 0 && mappedX < newWidth && mappedY >= 0 && mappedY < newHeight) {
+                    const idx = (mappedY * newWidth + mappedX) * 3;
+                    posZ = vertices[idx + 2];
+                    // const adjustedZThreshold = zThreshold * 0.5; // 临时放宽，例如从 -0.1 到 -0.05
+                    // if (posZ < adjustedZThreshold || posZ < 0) {
+                    //     isInDepression = true;
+                    //     validArrowCount++;
+                    // }
+
+                    // 独立的 arrowZ 计算
+                    const n = isFinite(normal[mappedY][mappedX]) ? normal[mappedY][mappedX] : 0;
+                    if (n > arrowThreshold) {
+                        const adjustedNormal = (n - arrowThreshold) / (normalMax - arrowThreshold);
+                        arrowZ = -adjustedNormal * depthScale * normalMaxFactor;
+                    }
+
+                    if (arrowZ < strictZThreshold) {
+                        isInDepression = true;
+                        validArrowCount++;
+                    }
+                }
+
+                if (!isInDepression) {
+                    arrow.visible = false;
+                    continue;
+                }
+
+                const mesh = meshRef.current;
+                posX += mesh.position.x;
+                posY += mesh.position.y;
+                posZ += mesh.position.z;
+
+                arrow.position.set(posX, posY, posZ);
+
+                const endX = ((end[0] - arrowMinX) / arrowRangeX) * newWidth;
+                const endY = ((end[1] - arrowMinY) / arrowRangeY) * newHeight;
+                const shearX = (endX - origX) / step * scale;
+                const shearY = (endY - origY) / step * scale;
+                let direction = new THREE.Vector3(shearX, shearY, 0);
+                if (direction.lengthSq() === 0) {
+                    direction.set(1, 0, 0);
+                } else {
+                    direction.normalize();
+                }
+
+                const depth = zRange > 0 ? (maxZ - posZ) / zRange : 0;
+                const baseLength = baseArrowLength + (maxArrowLength - baseArrowLength) * depth * 0.5;
+                const arrowLength = baseLength * arrowLengthScale;
+                const adjustedArrowHeadLength = arrowHeadLength * (1 + depth * 0.5);
+                const adjustedArrowHeadWidth = adjustedArrowHeadLength * 0.5;
+
+                const color = interpolateColor(depth, arrowColors);
+                const arrowColor = new THREE.Color(color.r, color.g, color.b);
+
+                arrow.setDirection(direction);
+                arrow.setLength(arrowLength, adjustedArrowHeadLength, adjustedArrowHeadWidth);
+                arrow.setColor(arrowColor);
+                arrow.visible = true;
+                arrowCount++;
+
+                const posKey = `${Math.floor(mappedX / 10)}-${Math.floor(mappedY / 10)}`;
+                positionCounts[posKey] = (positionCounts[posKey] || 0) + 1;
+            }
+
+            // console.log(`After rendering: arrowCount=${arrowCount}, validArrowCount=${validArrowCount}`);
+            // console.log("箭头数量" + arrowCount + "---目标" + targetArrowCount + "select" + selectedArrows.length);
+            if (arrowCount > targetArrowCount * 0.96 && arrowCount > 0) {
+                for (let i = 0; i < arrowPoolRef.current.length; i++) {
+                    const arrow = arrowPoolRef.current[i];
+                    if (!arrow) {
+                        console.warn(`Undefined arrow at index ${i} during reset`);
+                        continue;
+                    }
+                    arrow.visible = false;
+                }
+                arrowCount = 0;
+            }
+        } else {
+            arrowPoolRef.current.forEach((arrow, index) => {
+                if (!arrow) {
+                    console.warn(`Undefined arrow at index ${index}`);
+                    return;
+                }
+                arrow.visible = false;
+            });
         }
 
         if (rendererRef.current && sceneRef.current && cameraRef.current) {
             rendererRef.current.render(sceneRef.current, cameraRef.current);
         }
+
+        const endTime = performance.now();
+        // console.log(`渲染耗时: ${(endTime - startTime).toFixed(2)}ms`);
     };
 
     useEffect(() => {
@@ -611,12 +781,15 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         controls.maxDistance = 1000;
         controlsRef.current = controls;
 
+        // 初始化时固定网格尺寸
         let newWidth = 100;
         let newHeight = 100;
         const step = 1;
+        stepRef.current = step;
         const containerWidth = containerRef.current.clientWidth;
         const targetWidth = containerWidth / 3;
         const scale = targetWidth / (newWidth * step);
+        scaleRef.current = scale;
 
         const tempGeometry = new THREE.BufferGeometry();
         const tempVertices = new Float32Array(newWidth * newHeight * 3);
@@ -630,16 +803,19 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         }
         tempGeometry.setAttribute('position', new THREE.Float32BufferAttribute(tempVertices, 3));
         tempGeometry.computeBoundingBox();
+
         const box = tempGeometry.boundingBox;
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
-        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.1;
 
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
         controls.update();
+
+
 
         const light1 = new THREE.DirectionalLight(0xffffff, 2.0);
         light1.position.set(0, 0, 10);
@@ -730,9 +906,6 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         axesScene.add(yAxis);
         axesScene.add(zAxis);
 
-        arrowsGroupRef.current = new THREE.Group();
-        sceneRef.current.add(arrowsGroupRef.current);
-
         const animate = () => {
             requestAnimationFrame(animate);
             controls.update();
@@ -756,6 +929,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             }
         };
         window.addEventListener('resize', handleResize);
+        handleResetView();
+
 
         return () => {
             isMounted.current = false;
@@ -782,7 +957,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         if (forceData && forceData.normal) {
             updateMesh(forceData);
         }
-    }, [forceData, sliderValue]);
+    }, [forceData, sliderValue, showArrows]);
 
     const handleResetView = () => {
         if (!cameraRef.current || !controlsRef.current || !geometryRef.current) return;
@@ -792,15 +967,10 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
 
         geometry.computeBoundingBox();
         const box = geometry.boundingBox;
-        const center = box.getCenter(new THREE.Vector3());
         const size = box.getSize(new THREE.Vector3());
         const maxDim = Math.max(size.x, size.y, size.z);
         const fov = camera.fov * (Math.PI / 180);
         const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
-
-        if (meshRef.current) {
-            meshRef.current.position.set(-center.x, -center.y, -center.z);
-        }
 
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
@@ -814,15 +984,22 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const trimmedNumber = sequenceNumber.trim();
         const parsedNumber = parseInt(trimmedNumber, 10);
         if (trimmedNumber && !isNaN(parsedNumber)) {
-            setSequenceList([...sequenceList, parsedNumber.toString()]);
+            setSequenceList(prev => {
+                const newList = [...prev, parsedNumber.toString()];
+                return newList;
+            });
             setSequenceNumber('');
         } else {
             toast.error(t('invalidSerialNumber'));
         }
     };
 
+    // 修改 handleDeleteSequence
     const handleDeleteSequence = (index) => {
-        setSequenceList(sequenceList.filter((_, i) => i !== index));
+        setSequenceList(prev => {
+            const newList = prev.filter((_, i) => i !== index);
+            return newList;
+        });
     };
 
     const handleSequenceClick = (sequence) => {
@@ -833,14 +1010,13 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 return;
             }
             socket.emit('set_cam_id', {cam_id: camId});
-            setSelectedSequence(sequence); // 更新选中的序列号
+            setSelectedSequence(sequence);
             toast.info(t('fetchingSensorData'));
         } else {
             toast.error(t('socketNotConnected'));
         }
     };
 
-    // 新增点击处理函数
     const handleFetchDevicesClick = () => {
         if (socket && socket.connected) {
             onFetchDevices();
@@ -855,14 +1031,16 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             ref={containerRef}
             sx={{
                 position: 'relative',
-                height: '95%',
+                height: '96%',
                 backgroundColor: '#232528',
                 borderRadius: '18px',
                 overflow: 'hidden',
                 display: 'flex',
                 flexDirection: 'column',
-                margin: '10px 20px',
+                margin: '0px 20px',
                 marginRight: '30px',
+                marginTop:'10px'
+
             }}
         >
             <ResetButton onClick={handleResetView} title={t('resetView')}>
@@ -907,6 +1085,46 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                     <Typography variant="caption">{t('calibrate')}</Typography>
                 </CalibrateButton>
             </Tooltip>
+
+            <ArrowToggleContainer>
+                <Tooltip
+                    title={t('arrowDrawingPerformanceWarning')}
+                    placement="bottom"
+                    arrow
+                    componentsProps={{
+                        tooltip: {
+                            sx: {
+                                backgroundColor: '#322',
+                                color: '#fff',
+                                borderRadius: '8px',
+                                padding: '10px 20px',
+                                fontSize: '14px',
+                            },
+                        },
+                        arrow: {
+                            sx: {
+                                color: '#322',
+                            },
+                        },
+                    }}
+                >
+                    <FormControlLabel
+                        control={
+                            <Checkbox
+                                checked={showArrows}
+                                onChange={(e) => setShowArrows(e.target.checked)}
+                                sx={{
+                                    color: '#fff',
+                                    '&.Mui-checked': {
+                                        color: '#e61937',
+                                    },
+                                }}
+                            />
+                        }
+                        label={<Typography variant="caption" sx={{color: '#fff'}}>{t('showArrows')}</Typography>}
+                    />
+                </Tooltip>
+            </ArrowToggleContainer>
 
             <SliderContainer>
                 <CircleValue isRight={false}>
