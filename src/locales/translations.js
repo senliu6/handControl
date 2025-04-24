@@ -41,7 +41,15 @@ export const translations = {
     arrowDrawingPerformanceWarning:'Arrow Drawing Performance Warning',
     configureWebSocket:'configureWebSocket',
     ipAddress:'ipAddress',
-    port:'port'
+    port:'port',
+    save:'save',
+    cancel:'cancel',
+    invalidConfig: 'invalidConfig',
+    invalidIp :'invalidIp',
+    invalidPort : 'invalidPort',
+    enabled:'Enabled Arrow',
+    Disabled:'Disabled Arrow',
+    failedToEnable:'failed to enable'
   },
   zh: {
     // App.jsx
@@ -86,7 +94,15 @@ export const translations = {
     arrowDrawingPerformanceWarning:'箭头绘制性能警告',
     configureWebSocket:' 配置 WebSocket 地址',
     ipAddress:'IP 地址',
-    port:'端口'
+    port:'端口',
+    save:'保存',
+    cancel:'取消',
+    invalidConfig: '请输入有效的 IP 和端口',
+    invalidIp :'请输入有效的 IP 地址',
+    invalidPort : '请输入有效的端口号 (1-65535)',
+    enabled:'已启用箭头显示',
+    Disabled:'未启用箭头显示',
+    failedToEnable:'箭头启用失败'
 
   },
 };

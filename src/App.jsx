@@ -82,7 +82,7 @@ const App = () => {
             if (response.status === 'success') {
                 toast.success(t('sensorInitialized'));
             } else {
-                toast.error(t('sensorInitFailed') + ': ' + response.message);
+                toast.error(t('sensorInitFailed') + ': ');
             }
         });
 
@@ -93,7 +93,7 @@ const App = () => {
                     toast.info(t('noDevicesFound'));
                 }
             } else {
-                toast.error(t('fetchDevicesFailed') + ': ' + response.message);
+                toast.error(t('fetchDevicesFailed') + ': ');
             }
         });
 
@@ -172,7 +172,7 @@ const App = () => {
             if (response.status === 'success') {
                 toast.success(t('calibrationSuccess'));
             } else {
-                toast.error(t('calibrationFailed') + ': ' + response.message);
+                toast.error(t('calibrationFailed') + ': ');
             }
         });
 
@@ -229,7 +229,7 @@ const App = () => {
             case 'error':
                 return (
                     <Chip
-                        label={t('error')}
+                        label={t('disconnected')}
                         color="error"
                         size="14px"
                         sx={{ backgroundColor: '#f44336', color: '#fff' }}
@@ -267,25 +267,25 @@ const App = () => {
 
     const handleSaveConfig = () => {
         if (!configIp || !configPort) {
-            toast.error(t('invalidConfig') || '请输入有效的 IP 和端口');
+            toast.error(t('invalidConfig'));
             return;
         }
         // 验证 IP 和端口格式
         const ipRegex = /^(?:\d{1,3}\.){3}\d{1,3}$/;
         if (!ipRegex.test(configIp)) {
-            toast.error(t('invalidIp') || '请输入有效的 IP 地址');
+            toast.error(t('invalidIp'));
             return;
         }
         const portNum = parseInt(configPort, 10);
         if (isNaN(portNum) || portNum < 1 || portNum > 65535) {
-            toast.error(t('invalidPort') || '请输入有效的端口号 (1-65535)');
+            toast.error(t('invalidPort'));
             return;
         }
 
         // 保存配置到 localStorage
         const config = { ip: configIp, port: configPort };
         localStorage.setItem('websocketConfig', JSON.stringify(config));
-        toast.success(t('configSaved') || '配置已保存');
+        toast.success(t('configSaved'));
 
         // 断开当前 WebSocket 连接
         if (socketRef.current) {
@@ -405,8 +405,8 @@ const App = () => {
                         />
                     </DialogContent>
                     <DialogActions>
-                        <Button onClick={handleCloseConfigDialog}>{t('cancel') || '取消'}</Button>
-                        <Button onClick={handleSaveConfig}>{t('save') || '保存'}</Button>
+                        <Button onClick={handleCloseConfigDialog}>{t('cancel')}</Button>
+                        <Button onClick={handleSaveConfig}>{t('save')}</Button>
                     </DialogActions>
                 </Dialog>
                 <ToastContainer position="top-right" autoClose={3000} />

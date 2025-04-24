@@ -2,9 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import * as echarts from 'echarts';
 
 const forceOptions = [
-    { label: 'Fx', color: '#e61736' },
-    { label: 'Fy', color: '#e61736' },
-    { label: 'Fz', color: '#e61736' },
+    { label: 'Dx', color: '#e61736' },
+    { label: 'Dy', color: '#e61736' },
+    { label: 'Dz', color: '#e61736' },
 ];
 
 const ChartPanel = ({ forceData }) => {
@@ -103,7 +103,7 @@ const ChartPanel = ({ forceData }) => {
             return;
         }
 
-        const titles = ['Fx = 0.00mm', 'Fy = 0.00mm', 'Fz = 0.00mm'];
+        const titles = ['Dx = 0.00mm', 'Dy = 0.00mm', 'Dz = 0.00mm'];
         const chart = initChart(element, titles[index], forceOptions[index].color);
         if (chart) {
             chartsRef.current[index] = chart;
@@ -184,7 +184,7 @@ const ChartPanel = ({ forceData }) => {
             chartsRef.current.forEach((chart, index) => {
                 if (!chart || chart.isDisposed()) {
                     if (chartElementsRef.current[index]) {
-                        const titles = ['Fx = 0.00mm', 'Fy = 0.00mm', 'Fz = 0.00mm'];
+                        const titles = ['Dx = 0.00mm', 'Dy = 0.00mm', 'Dz = 0.00mm'];
                         const newChart = initChart(chartElementsRef.current[index], titles[index], forceOptions[index].color);
                         if (newChart) {
                             chartsRef.current[index] = newChart;
