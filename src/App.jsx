@@ -359,12 +359,12 @@ const App = () => {
                     </Box>
                 </Box>
                 <Box sx={{ display: 'flex', height: 'calc(92% - 10px)', mb: 2 }}>
-                    <Box sx={{ flex: '0 0 20%', height: '100%', overflow: 'hidden' }}>
+                    <Box sx={{ flex: '0 0 25%', height: '100%', overflow: 'hidden' }}>
                         <ChartPanel forceData={forceData} socketStatus={socketStatus} />
                     </Box>
                     <Box
                         sx={{
-                            flex: '0 0 80%',
+                            flex: '0 0 75%',
                             height: '100%',
                             overflow: 'hidden',
                             mr: 2,

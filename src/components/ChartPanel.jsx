@@ -210,7 +210,7 @@ const ChartPanel = ({ forceData }) => {
 
                 // 动态计算 X 轴间隔（以秒为单位）
                 const timeRangeSeconds = (xMax - xMin) / 1000; // 转换为秒
-                const desiredLabelCount = 6; // 目标标签数量（可调整）
+                const desiredLabelCount = 3; // 目标标签数量（可调整）
                 const intervalSeconds = Math.ceil(timeRangeSeconds / desiredLabelCount); // 每隔几秒一个标签
                 const intervalMilliseconds = intervalSeconds * 1000; // 转换为毫秒
 

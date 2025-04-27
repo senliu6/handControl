@@ -200,6 +200,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const stepRef = useRef(1); // 固定 step 值
     const meshCenterRef = useRef(null); // 存储初始化的 mesh 中心位置
     const lastClickTime = useRef(0);
+    // 在组件顶部添加标志
+    const hasResetView = useRef(false); // 跟踪是否已自动重置
 
     // 控制服务器箭头数据发送
     useEffect(() => {
@@ -311,7 +313,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         }
         const normalRange = normalMax - normalMin > 0 ? normalMax - normalMin : 0;
         const tStatsEnd = performance.now();
-        console.log(`[ThreeScene.jsx] normal 统计耗时: ${(tStatsEnd - tStatsStart).toFixed(2)}ms (min: ${normalMin}, max: ${normalMax})`);
+        // console.log(`[ThreeScene.jsx] normal 统计耗时: ${(tStatsEnd - tStatsStart).toFixed(2)}ms (min: ${normalMin}, max: ${normalMax})`);
 
         // 添加日志：打印 normal 数据范围
         // console.log(`normal 数据: min=${normalMin}, max=${normalMax}, range=${normalRange}`);
@@ -403,7 +405,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             }
         }
         const tVertexEnd = performance.now();
-        console.log(`[ThreeScene.jsx] 顶点和颜色计算耗时: ${(tVertexEnd - tVertexStart).toFixed(2)}ms (vertices: ${newWidth}x${newHeight})`);
+        // console.log(`[ThreeScene.jsx] 顶点和颜色计算耗时: ${(tVertexEnd - tVertexStart).toFixed(2)}ms (vertices: ${newWidth}x${newHeight})`);
 
         const tGeometryStart = performance.now();
         if (geometry.attributes.position) {
@@ -418,7 +420,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         geometry.attributes.color.needsUpdate = true;
         geometry.computeVertexNormals();
         const tGeometryEnd = performance.now();
-        console.log(`[ThreeScene.jsx] 几何体更新耗时: ${(tGeometryEnd - tGeometryStart).toFixed(2)}ms`);
+        // console.log(`[ThreeScene.jsx] 几何体更新耗时: ${(tGeometryEnd - tGeometryStart).toFixed(2)}ms`);
 
 
         // 网格初始化或定位
@@ -441,7 +443,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             meshRef.current.position.copy(meshCenterRef.current);
         }
         const tMeshEnd = performance.now();
-        console.log(`[ThreeScene.jsx] 网格初始化/定位耗时: ${(tMeshEnd - tMeshStart).toFixed(2)}ms`);
+        // console.log(`[ThreeScene.jsx] 网格初始化/定位耗时: ${(tMeshEnd - tMeshStart).toFixed(2)}ms`);
 
         if (showArrows) {
             const tArrowsStart = performance.now();
@@ -460,7 +462,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             const arrows = data.arrows;
             if (!arrows || !Array.isArray(arrows)) {
                 const tEnd = performance.now();
-                console.log(`[ThreeScene.jsx] 渲染耗时: ${(tEnd - tStart).toFixed(2)}ms (无箭头数据)`);
+                // console.log(`[ThreeScene.jsx] 渲染耗时: ${(tEnd - tStart).toFixed(2)}ms (无箭头数据)`);
                 return;
             }
 
@@ -486,7 +488,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             const arrowRangeX = arrowMaxX - arrowMinX > 0 ? arrowMaxX - arrowMinX : 1;
             const arrowRangeY = arrowMaxY - arrowMinY > 0 ? arrowMaxY - arrowMinY : 1;
             const tArrowRangeEnd = performance.now();
-            console.log(`[ThreeScene.jsx] 箭头范围计算耗时: ${(tArrowRangeEnd - tArrowRangeStart).toFixed(2)}ms`);
+            // console.log(`[ThreeScene.jsx] 箭头范围计算耗时: ${(tArrowRangeEnd - tArrowRangeStart).toFixed(2)}ms`);
 
             // 箭头数量选择
             const tArrowSelectStart = performance.now();
@@ -609,7 +611,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 // console.log(`sliderValue: ${sliderValue}, targetArrowCount: ${targetArrowCount}, selectedArrows.length: ${selectedArrows.length}`);
             }
             const tArrowSelectEnd = performance.now();
-            console.log(`[ThreeScene.jsx] 箭头选择耗时: ${(tArrowSelectEnd - tArrowSelectStart).toFixed(2)}ms (target: ${targetArrowCount}, selected: ${selectedArrows.length})`);
+            // console.log(`[ThreeScene.jsx] 箭头选择耗时: ${(tArrowSelectEnd - tArrowSelectStart).toFixed(2)}ms (target: ${targetArrowCount}, selected: ${selectedArrows.length})`);
 
             // 确保箭头池足够支持 selectedArrows.length
             // 箭头渲染
@@ -746,11 +748,11 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             }
 
             const tArrowRenderEnd = performance.now();
-            console.log(`[ThreeScene.jsx] 箭头渲染耗时: ${(tArrowRenderEnd - tArrowRenderStart).toFixed(2)}ms (rendered: ${arrowCount}, valid: ${validArrowCount})`);
+            // console.log(`[ThreeScene.jsx] 箭头渲染耗时: ${(tArrowRenderEnd - tArrowRenderStart).toFixed(2)}ms (rendered: ${arrowCount}, valid: ${validArrowCount})`);
 
             // console.log(`After rendering: arrowCount=${arrowCount}, validArrowCount=${validArrowCount}`);
-            // console.log("箭头数量" + arrowCount + "---目标" + targetArrowCount + "select" + selectedArrows.length);
-            if (arrowCount > targetArrowCount * 0.96 && arrowCount > 0) {
+            console.log("箭头数量" + arrowCount + "---目标" + targetArrowCount + "select" + selectedArrows.length);
+            if (arrowCount > targetArrowCount * 0.90 && arrowCount > 0) {
                 for (let i = 0; i < arrowPoolRef.current.length; i++) {
                     const arrow = arrowPoolRef.current[i];
                     if (!arrow) {
@@ -762,7 +764,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 arrowCount = 0;
             }
             const tArrowsEnd = performance.now();
-            console.log(`[ThreeScene.jsx] 箭头总耗时: ${(tArrowsEnd - tArrowsStart).toFixed(2)}ms`);
+            // console.log(`[ThreeScene.jsx] 箭头总耗时: ${(tArrowsEnd - tArrowsStart).toFixed(2)}ms`);
         } else {
             const tArrowHideStart = performance.now();
             arrowPoolRef.current.forEach((arrow, index) => {
@@ -773,7 +775,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 arrow.visible = false;
             });
             const tArrowHideEnd = performance.now();
-            console.log(`[ThreeScene.jsx] 隐藏箭头耗时: ${(tArrowHideEnd - tArrowHideStart).toFixed(2)}ms`);
+            // console.log(`[ThreeScene.jsx] 隐藏箭头耗时: ${(tArrowHideEnd - tArrowHideStart).toFixed(2)}ms`);
         }
 
         const tRenderStart = performance.now();
@@ -782,10 +784,10 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         }
 
         const tRenderEnd = performance.now();
-        console.log(`[ThreeScene.jsx] Three.js 渲染耗时: ${(tRenderEnd - tRenderStart).toFixed(2)}ms`);
+        // console.log(`[ThreeScene.jsx] Three.js 渲染耗时: ${(tRenderEnd - tRenderStart).toFixed(2)}ms`);
 
         const tEnd = performance.now();
-        console.log(`[ThreeScene.jsx] 总渲染耗时: ${(tEnd - tStart).toFixed(2)}ms`);
+        // console.log(`[ThreeScene.jsx] 总渲染耗时: ${(tEnd - tStart).toFixed(2)}ms`);
     };
 
     useEffect(() => {
@@ -842,14 +844,21 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
 
         const box = tempGeometry.boundingBox;
         const size = box.getSize(new THREE.Vector3());
-        const maxDim = Math.max(size.x, size.y, size.z);
+        // 动态估算形变后的尺寸
+        const estimatedSizeX = size.x; // 使用临时几何体的 X 尺寸
+        const estimatedSizeY = size.y; // 使用临时几何体的 Y 尺寸
+        const estimatedMaxZ = size.x * 0.18; // 估算 Z 为 X 的 18%（基于 Z/X ≈ 32.03/180.70 ≈ 0.18）
+        const maxDim = Math.max(estimatedSizeX, estimatedSizeY, estimatedMaxZ);
         const fov = camera.fov * (Math.PI / 180);
-        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 1.8;
+        const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
+
+        console.log("cameraZ1111"+cameraZ+"SIZE="+size.x+"Y="+size.y+"Z="+size.z)
 
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
         controls.update();
+
 
 
 
@@ -965,7 +974,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             }
         };
         window.addEventListener('resize', handleResize);
-        handleResetView();
+
 
 
         return () => {
@@ -995,6 +1004,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         }
     }, [forceData, sliderValue, showArrows]);
 
+
+
     const handleResetView = () => {
         if (!cameraRef.current || !controlsRef.current || !geometryRef.current) return;
         const camera = cameraRef.current;
@@ -1008,6 +1019,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const fov = camera.fov * (Math.PI / 180);
         const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
 
+        console.log("cameraZ222"+cameraZ+"SIZE:"+size.x+"Y="+size.y+"Z="+size.z)
+
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
         camera.up.set(0, 1, 0);
@@ -1015,6 +1028,23 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         controls.target.set(0, 0, 0);
         controls.update();
     };
+
+
+    // 首次渲染后单次自动重置视角
+    useEffect(() => {
+        if (
+            forceData &&
+            forceData.normal &&
+            geometryRef.current &&
+            cameraRef.current &&
+            controlsRef.current &&
+            !hasResetView.current
+        ) {
+            handleResetView();
+            hasResetView.current = true; // 标记已重置
+            console.log('首次渲染后单次自动重置视角');
+        }
+    }, [forceData]); // 仅依赖 forceData
 
     const handleAddSequence = () => {
         const trimmedNumber = sequenceNumber.trim();
