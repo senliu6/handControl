@@ -1,13 +1,15 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, {useEffect, useRef, useState} from 'react';
 import * as echarts from 'echarts';
+import {toast} from "react-toastify";
+import {isMobile, isTablet, isDesktop} from 'react-device-detect';
 
 const forceOptions = [
-    { label: 'Dx', color: '#e61736' },
-    { label: 'Dy', color: '#e61736' },
-    { label: 'Dz', color: '#e61736' },
+    {label: 'Dx', color: '#e61736'},
+    {label: 'Dy', color: '#e61736'},
+    {label: 'Dz', color: '#e61736'},
 ];
 
-const ChartPanel = ({ forceData }) => {
+const ChartPanel = ({forceData}) => {
     const chartsRef = useRef([]);
     const chartElementsRef = useRef([]);
     const startTimeRef = useRef(null);
@@ -25,35 +27,39 @@ const ChartPanel = ({ forceData }) => {
                     text: 'Deformation (mm)',
                     left: 'left',
                     top: 'top',
-                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                    textStyle: {
+                        color: '#fff',
+                        fontSize: isDesktop ? 16 : 10,
+                        fontFamily: 'Roboto'
+                    },
                 },
                 {
                     text: title,
                     right: 'right',
                     top: 'top',
-                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                    textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
                 },
                 {
                     text: 'Time(ms)', // 修改为 "Time(ms)" 与 X 轴一致
                     right: 'right',
                     bottom: 'bottom',
-                    textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                    textStyle: {color: '#fff', fontSize: 16, fontFamily: 'Roboto'},
                 },
             ],
-            grid: { top: 40, right: 10, bottom: 30, left: 25, containLabel: true },
+            grid: {top: isDesktop ? 40 : 20, right: 10, bottom: isDesktop ?  30 : 15, left: 25, containLabel: true},
             xAxis: {
                 type: 'value',
                 min: 0,
                 max: 500,
                 interval: 100,
-                axisLine: { lineStyle: { color: '#444' } },
+                axisLine: {lineStyle: {color: '#444'}},
                 axisLabel: {
                     color: '#fff',
                     fontSize: 12,
                     fontFamily: 'Roboto',
                     formatter: (value) => `${Math.round(value)}`,
                 },
-                splitLine: { show: false },
+                splitLine: {show: false},
             },
             yAxis: {
                 type: 'value',
@@ -61,13 +67,13 @@ const ChartPanel = ({ forceData }) => {
                 min: -6,
                 max: 6,
                 interval: 3,
-                axisLine: { lineStyle: { color: '#444' } },
+                axisLine: {lineStyle: {color: '#444'}},
                 axisLabel: {
                     color: '#fff',
                     fontSize: 12,
                     fontFamily: 'Roboto',
                 },
-                splitLine: { lineStyle: { color: '#333' } },
+                splitLine: {lineStyle: {color: '#333'}},
             },
             series: [
                 {
@@ -75,11 +81,11 @@ const ChartPanel = ({ forceData }) => {
                     smooth: true,
                     showSymbol: false,
                     data: [],
-                    lineStyle: { color, width: 1.5 },
+                    lineStyle: {color, width: 1.5},
                     areaStyle: {
                         color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                            { offset: 0, color: `${color}80` },
-                            { offset: 1, color: `${color}00` },
+                            {offset: 0, color: `${color}80`},
+                            {offset: 1, color: `${color}00`},
                         ]),
                     },
                 },
@@ -132,7 +138,7 @@ const ChartPanel = ({ forceData }) => {
         }
 
         const updateChart = () => {
-            const { normal, shear, timestamp } = forceData;
+            const {normal, shear, timestamp} = forceData;
             const height = normal.length;
             const width = normal[0].length;
 
@@ -198,7 +204,7 @@ const ChartPanel = ({ forceData }) => {
                 }
 
                 const currentOption = chart.getOption() || {};
-                const series = currentOption.series && currentOption.series[0] ? currentOption.series[0] : { data: [] };
+                const series = currentOption.series && currentOption.series[0] ? currentOption.series[0] : {data: []};
                 const seriesData = series.data || [];
 
                 const newValue = index === 0 ? avgShearX : index === 1 ? avgShearY : avgNormal;
@@ -210,9 +216,9 @@ const ChartPanel = ({ forceData }) => {
 
                 // 动态计算 X 轴间隔（以秒为单位）
                 const timeRangeSeconds = (xMax - xMin) / 1000; // 转换为秒
-                const desiredLabelCount = 3; // 目标标签数量（可调整）
-                const intervalSeconds = Math.ceil(timeRangeSeconds / desiredLabelCount); // 每隔几秒一个标签
-                const intervalMilliseconds = intervalSeconds * 1000; // 转换为毫秒
+                const desiredLabelCount = 3; // 目标标签数量
+                const intervalSeconds = timeRangeSeconds / desiredLabelCount; // 直接计算平均间隔，不取整
+                const intervalMilliseconds = intervalSeconds * 1000; // 转换回毫秒
 
                 chart.setOption({
                     title: [
@@ -220,21 +226,34 @@ const ChartPanel = ({ forceData }) => {
                             text: 'Deformation (mm)',
                             left: 'left',
                             top: 'top',
-                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                            textStyle: {
+                                color: '#fff',
+                                fontSize: isDesktop ? 16 : 10,
+                                fontFamily: 'Roboto'
+                            },
                         },
                         {
                             text: `${forceOptions[index].label} = ${newValue.toFixed(2)}mm`,
                             right: 'right',
                             top: 'top',
-                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                            textStyle: {
+                                color: '#fff',
+                                fontSize: isDesktop ? 16 : 10,
+                                fontFamily: 'Roboto'
+                            },
                         },
                         {
                             text: 'Time (s)',
                             right: 'right',
                             bottom: 'bottom',
-                            textStyle: { color: '#fff', fontSize: 16, fontFamily: 'Roboto' },
+                            textStyle: {
+                                color: '#fff',
+                                fontSize: isDesktop ? 16 : 10,
+                                fontFamily: 'Roboto'
+                            },
                         },
                     ],
+                    grid: {top: isDesktop ? 60 : 20, right:isDesktop ? 20 : 10, bottom: isDesktop ?  30 : 15, left: isDesktop ? 25: 10, containLabel: true},
                     xAxis: {
                         min: xMin,
                         max: xMax,
@@ -242,10 +261,10 @@ const ChartPanel = ({ forceData }) => {
                         axisLabel: {
                             formatter: (value) => `${(value / 1000).toFixed(1)}s`, // 显示为秒，保留一位小数
                             color: '#fff',
-                            fontSize: 12,
+                            fontSize: isDesktop ? 12 : 8,
                             fontFamily: 'Roboto',
                         },
-                        splitLine: { show: false },
+                        splitLine: {show: false},
                     },
                     yAxis: {
                         min: -4,
@@ -253,11 +272,11 @@ const ChartPanel = ({ forceData }) => {
                         interval: 2,
                         axisLabel: {
                             color: '#fff',
-                            fontSize: 12,
+                            fontSize: isDesktop ? 16 : 10,
                             fontFamily: 'Roboto',
                             formatter: (value) => `${value}`,
                         },
-                        splitLine: { lineStyle: { color: '#464b50' } },
+                        splitLine: {lineStyle: {color: '#464b50'}},
                     },
                     series: [
                         {
@@ -265,11 +284,11 @@ const ChartPanel = ({ forceData }) => {
                             smooth: true,
                             showSymbol: false,
                             data: seriesData,
-                            lineStyle: { color: forceOptions[index].color, width: 1.5 },
+                            lineStyle: {color: forceOptions[index].color, width: 1.5},
                             areaStyle: {
                                 color: new echarts.graphic.LinearGradient(0, 0, 0, 1, [
-                                    { offset: 0, color: `${forceOptions[index].color}80` },
-                                    { offset: 1, color: `${forceOptions[index].color}00` },
+                                    {offset: 0, color: `${forceOptions[index].color}80`},
+                                    {offset: 1, color: `${forceOptions[index].color}00`},
                                 ]),
                             },
                         },
@@ -299,11 +318,11 @@ const ChartPanel = ({ forceData }) => {
                     key={index}
                     style={{
                         width: 'calc(100% - 50px)',
-                        height: 'calc(33.33% - 48px)',
+                        height: isDesktop ? 'calc(33.33% - 48px)' : 'calc(33.33% - 28px)',
                         backgroundColor: '#232528',
                         borderRadius: '18px',
                         overflow: 'hidden',
-                        padding: '10px',
+                        padding: isDesktop ? '10px' : '5px',
                     }}
                     ref={el => handleChartRef(el, index)}
                 />

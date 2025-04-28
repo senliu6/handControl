@@ -23,11 +23,12 @@ import * as THREE from 'three';
 import {OrbitControls} from 'three/examples/jsm/controls/OrbitControls.js';
 import {toast} from 'react-toastify';
 import {Tooltip} from '@mui/material';
+import {isMobile, isTablet, isDesktop} from 'react-device-detect';
 
 // 样式定义保持不变
 const ResetButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
-    top: '180px',
+    top: isDesktop ? '180px' : '80px',
     right: '50px',
     backgroundColor: 'rgba(35, 37, 40, 0.7)',
     color: '#fff',
@@ -35,6 +36,7 @@ const ResetButton = styled(IconButton)(({theme}) => ({
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'center',
+
 }));
 const CalibrateButton = styled(IconButton)(({theme}) => ({
     position: 'absolute',
@@ -74,8 +76,8 @@ const SliderContainer = styled(Box)(({theme}) => ({
     left: '50%',
     transform: 'translateX(-50%)',
     width: '80%',
-    maxWidth: '600px',
-    minWidth: '400px',
+    maxWidth: isDesktop ? '600px' : '300px',
+    minWidth: isDesktop ? '400px' : '200px',
     padding: '10px 20px',
     display: 'flex',
     flexDirection: 'row',
@@ -130,7 +132,7 @@ const InfoContainer = styled(Box)(({theme}) => ({
 }));
 const SequenceContainer = styled(Box)(({theme}) => ({
     position: 'absolute',
-    top: '250px',
+    top: isDesktop ? '250px' : '150px',
     right: '20px',
     width: '200px',
     backgroundColor: 'transparent',
@@ -289,15 +291,15 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const baseDepthScale = 10.0;
         const depthScale = baseDepthScale * 5;
         const hotColors = [
-            { r: 113 / 255, g: 114 / 255, b: 114 / 255 },
-            { r: 219 / 255, g: 117 / 255, b: 121 / 255 },
-            { r: 229 / 255, g: 50 / 255, b: 50 / 255 },
+            {r: 113 / 255, g: 114 / 255, b: 114 / 255},
+            {r: 219 / 255, g: 117 / 255, b: 121 / 255},
+            {r: 229 / 255, g: 50 / 255, b: 50 / 255},
         ];
 
         const arrowColors = [
-            { r: 66 / 255, g: 198 / 255, b: 175 / 255 },
-            { r: 49 / 255, g: 133 / 255, b: 255 / 255 },
-            { r: 126 / 255, g: 44 / 255, b: 255 / 255 },
+            {r: 66 / 255, g: 198 / 255, b: 175 / 255},
+            {r: 49 / 255, g: 133 / 255, b: 255 / 255},
+            {r: 126 / 255, g: 44 / 255, b: 255 / 255},
         ];
 
         const tStatsStart = performance.now();
@@ -544,7 +546,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
 
                     if (totalPoints < targetArrowCount) {
                         // 直接随机选择 targetArrowCount 个箭头
-                        const indices = Array.from({ length: arrows.length }, (_, i) => i);
+                        const indices = Array.from({length: arrows.length}, (_, i) => i);
                         for (let i = indices.length - 1; i > 0; i--) {
                             const j = Math.floor(Math.random() * (i + 1));
                             [indices[i], indices[j]] = [indices[j], indices[i]];
@@ -562,7 +564,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                                 const posX = (x + 0.5) * gridStepX;
                                 const posY = (y + 0.5) * gridStepY;
                                 if (posX < newWidth && posY < newHeight) {
-                                    targetPoints.push({ x: posX, y: posY });
+                                    targetPoints.push({x: posX, y: posY});
                                 }
                             }
                         }
@@ -575,7 +577,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
 
                         const usedIndices = new Set();
                         for (const point of selectedPoints) {
-                            const { x, y } = point;
+                            const {x, y} = point;
                             const origX = (x / newWidth) * arrowRangeX + arrowMinX;
                             const origY = (y / newHeight) * arrowRangeY + arrowMinY;
 
@@ -598,7 +600,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                             }
 
                             if (closestArrow) {
-                                selectedArrows.push({ index: closestIndex, arrowData: closestArrow });
+                                selectedArrows.push({index: closestIndex, arrowData: closestArrow});
                                 usedIndices.add(closestIndex);
                             }
                         }
@@ -852,14 +854,12 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const fov = camera.fov * (Math.PI / 180);
         const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
 
-        console.log("cameraZ1111"+cameraZ+"SIZE="+size.x+"Y="+size.y+"Z="+size.z)
+        console.log("cameraZ1111" + cameraZ + "SIZE=" + size.x + "Y=" + size.y + "Z=" + size.z)
 
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
         controls.target.set(0, 0, 0);
         controls.update();
-
-
 
 
         const light1 = new THREE.DirectionalLight(0xffffff, 2.0);
@@ -877,21 +877,22 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         axesCameraRef.current = axesCamera;
         axesCamera.position.set(7, 7, 7);
         axesCamera.lookAt(0, 0, 0);
-
+        //转轴
         const axesRenderer = new THREE.WebGLRenderer({antialias: true, alpha: true});
-        axesRenderer.setSize(120, 120);
+        axesRenderer.setSize(isDesktop ? 120 : 60, isDesktop ? 120 : 60);
         axesRenderer.setClearColor(0x000000, 0);
         axesRenderer.domElement.style.position = 'absolute';
         axesRenderer.domElement.style.top = '20px';
         axesRenderer.domElement.style.right = '20px';
         axesRendererRef.current = axesRenderer;
 
+
         const axesContainer = document.createElement('div');
         axesContainer.style.position = 'absolute';
-        axesContainer.style.top = '20px';
-        axesContainer.style.right = '20px';
-        axesContainer.style.width = '180px';
-        axesContainer.style.height = '180px';
+        axesContainer.style.top = isDesktop ? '20px' : '10px';
+        axesContainer.style.right = isDesktop ? '20px' : '10px';
+        axesContainer.style.width = isDesktop ? '180px' : '90px';
+        axesContainer.style.height = isDesktop ? '180px' : '90px';
         axesContainer.style.backgroundColor = 'transparent';
         axesContainer.style.borderRadius = '50%';
         axesContainer.style.overflow = 'hidden';
@@ -899,7 +900,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         containerRef.current.appendChild(axesContainer);
 
         const radius = 2;
-        const segments = 32;
+        const segments = isDesktop ? 32 : 16;
         const sphereRadius = 0.5;
 
         const createAxisWithLabel = (direction, axisColor, label, sphereColor) => {
@@ -976,7 +977,6 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         window.addEventListener('resize', handleResize);
 
 
-
         return () => {
             isMounted.current = false;
             if (animationFrameId.current) {
@@ -1005,7 +1005,6 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     }, [forceData, sliderValue, showArrows]);
 
 
-
     const handleResetView = () => {
         if (!cameraRef.current || !controlsRef.current || !geometryRef.current) return;
         const camera = cameraRef.current;
@@ -1019,7 +1018,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
         const fov = camera.fov * (Math.PI / 180);
         const cameraZ = Math.abs(maxDim / 2 / Math.tan(fov / 2)) * 2;
 
-        console.log("cameraZ222"+cameraZ+"SIZE:"+size.x+"Y="+size.y+"Z="+size.z)
+        console.log("cameraZ222" + cameraZ + "SIZE:" + size.x + "Y=" + size.y + "Z=" + size.z)
 
         camera.position.set(0, 0, -cameraZ);
         camera.lookAt(0, 0, 0);
@@ -1083,7 +1082,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 toast.error(t('invalidSerialNumber'));
                 return;
             }
-            socket.emit('set_cam_id', { cam_id: camId });
+            socket.emit('set_cam_id', {cam_id: camId});
             setSelectedSequence(sequence);
             toast.info(t('fetchingSensorData'));
         } else {
@@ -1113,7 +1112,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 flexDirection: 'column',
                 margin: '0px 20px',
                 marginRight: '30px',
-                marginTop:'10px'
+                marginTop: '10px'
 
             }}
         >
@@ -1309,11 +1308,12 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                             style={{width: 30, height: 20}}
                         />
                     </Box>
-                    <Typography variant="caption" sx={{color: '#fff', fontSize: '18px', marginLeft: '10px'}}>
+                    <Typography variant="caption"
+                                sx={{color: '#fff', fontSize: isDesktop ? '18px' : '12px', marginLeft: '10px'}}>
                         {t('sequencePlaceholder')}
                     </Typography>
                 </Box>
-                <Typography variant="caption" sx={{color: '#a0a5a7', fontSize: '14px'}}>
+                <Typography variant="caption" sx={{color: '#a0a5a7', fontSize: isDesktop ? '14px' : '10px'}}>
                     {t('onlySupports')}
                 </Typography>
                 <Box sx={{
@@ -1352,8 +1352,8 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
                 <List
                     dense
                     sx={{
-                        minHeight: '140px',
-                        maxHeight: '240px',
+                        minHeight: isDesktop ? '140px' : '70px',
+                        maxHeight: isDesktop ? '240px' : '120px',
                         overflowY: 'auto',
                         backgroundColor: '#121314',
                         borderRadius: '20px',

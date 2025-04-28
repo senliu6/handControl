@@ -9,6 +9,7 @@ import { io } from 'socket.io-client';
 import { ToastContainer, toast } from 'react-toastify';
 import pako from 'pako';
 import 'react-toastify/dist/ReactToastify.css';
+import {isMobile, isTablet, isDesktop} from 'react-device-detect';
 
 
 
@@ -322,7 +323,7 @@ const App = () => {
             >
                 <Box
                     sx={{
-                        height: '120px',
+                        height: '10%',
                         backgroundColor: '#000000',
                         display: 'flex',
                         alignItems: 'center',
@@ -332,7 +333,7 @@ const App = () => {
                         <img
                             src={new URL('./assets/logo.png', import.meta.url).href}
                             alt="Logo"
-                            style={{ width: 350, height: 60, marginLeft: '20px' }}
+                            style={{ width: '20%', height: '10%', marginLeft: '20px' }}
                         />
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <Typography variant="body2" sx={{ color: '#fff', fontSize: '18px' }}>
