@@ -166,7 +166,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const meshRef = useRef(null);
     const geometryRef = useRef(null);
     const arrowsGroupRef = useRef(null);
-    const arrowPoolRef = useRef([]);
+    const arrowPoolRef = useRef([]); // 对象池用于复用箭头对象，减少重复创建开销
     const axesRendererRef = useRef(null);
     const axesCameraRef = useRef(null);
     const axesSceneRef = useRef(null);
@@ -184,14 +184,24 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const lastLogTime = useRef(0);
     const lastNormalMax = useRef(null);
     const lastUpdateTime = useRef(0);
-    const animationFrameId = useRef(null);
+    const animationFrameId = useRef(null); // 记录动画帧ID以便正确取消
     const isMounted = useRef(false);
     const [sequenceNumber, setSequenceNumber] = useState('');
-    // 修改后的代码：
+    // 修改后的代码：优化渲染逻辑，仅在数据变化时触发渲染
     const [sequenceList, setSequenceList] = useState(() => {
         const saved = localStorage.getItem('sequenceList');
         return saved ? JSON.parse(saved) : [];
     });
+    // 添加渲染节流控制，避免高频重绘
+    const renderThrottle = useRef(null);
+    const requestRender = () => {
+        if (!renderThrottle.current) {
+            renderThrottle.current = requestAnimationFrame(() => {
+                rendererRef.current?.render(sceneRef.current, cameraRef.current);
+                renderThrottle.current = null;
+            });
+        }
+    };
     const [frameRate, setFrameRate] = useState(0);
     const [isTooltipOpen, setIsTooltipOpen] = useState(false);
     const selectedArrowsRef = useRef([]);

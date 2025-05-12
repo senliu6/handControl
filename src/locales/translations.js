@@ -49,7 +49,8 @@ export const translations = {
     invalidPort : 'invalidPort',
     enabled:'Enabled Arrow',
     Disabled:'Disabled Arrow',
-    failedToEnable:'failed to enable'
+    failedToEnable:'failed to enable',
+    invalidSerialNumber:'invalidSerialNumber'
   },
   zh: {
     // App.jsx
@@ -102,7 +103,8 @@ export const translations = {
     invalidPort : '请输入有效的端口号 (1-65535)',
     enabled:'已启用箭头显示',
     Disabled:'未启用箭头显示',
-    failedToEnable:'箭头启用失败'
+    failedToEnable:'箭头启用失败',
+    invalidSerialNumber:'请输入数字'
 
   },
 };
