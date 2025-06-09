@@ -83,7 +83,8 @@ const App = () => {
             if (response.status === 'success') {
                 toast.success(t('sensorInitialized'));
             } else {
-                toast.error(t('sensorInitFailed') + ': ');
+                toast.error(`${t('sensorInitFailed')}:`);
+                // toast.error(`${t('sensorInitFailed')}: ${response.message || '未知错误'}`);
             }
         });
 

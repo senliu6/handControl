@@ -1103,7 +1103,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
     const handleFetchDevicesClick = () => {
         if (socket && socket.connected) {
             onFetchDevices();
-            toast.info(t('fetchingDevices'));
+            toast.info(t('wait'));
         } else {
             toast.error(t('socketNotConnected'));
         }
@@ -1306,7 +1306,7 @@ const ThreeScene = ({forceData, socket, serverFps, language, connectedDevices, o
             <SequenceContainer>
                 <Box sx={{display: 'flex', alignItems: 'center'}}>
                     <Box
-                        // onClick={handleFetchDevicesClick} //获取序列号列表
+                        onClick={handleFetchDevicesClick} //获取序列号列表
                         sx={{
                             cursor: socket && socket.connected ? 'pointer' : 'not-allowed',
                             opacity: socket && socket.connected ? 1 : 0.5,
